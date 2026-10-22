@@ -42,7 +42,7 @@ All quotas are configurable; see [pricing specification](docs/PRICING.md). Provi
 - Installation and production blockers: [cPanel deployment](docs/CPANEL_DEPLOYMENT.md)
 - Automated PHP lint instructions: [.github/workflows/quality.yml](.github/workflows/quality.yml)
 
-The worker performs DNS configuration lookups for a **verified user's own email domain**. Optional exact-match GitHub public commits and licensed Have I Been Pwned metadata are disabled by default and require approved provider credentials. This is not equivalent to universal account discovery. Paid checkout is disabled by default; a signed webhook adapter exists but no live billing has been activated. Demo visuals are labelled illustrative.
+The worker performs detailed DNS/email-security configuration, optional certificate transparency, indexed public documents/professional/community references, and permitted public-source intelligence for **verified self-checks**. Optional exact-match GitHub public commits and licensed Have I Been Pwned metadata are disabled by default and require approved provider credentials. This is not equivalent to universal account discovery. Paid checkout is disabled by default; a signed webhook adapter exists but no live billing has been activated. Demo visuals are labelled illustrative.
 
 ## Contribution expectations
 Keep changes scoped, avoid destructive repo updates, never commit secrets, and verify every asserted integration in staging before marking it functional.
@@ -52,3 +52,5 @@ Keep changes scoped, avoid destructive repo updates, never commit secrets, and v
 - PHP/MySQL integration: registration, email verification, authorised self-check, worker, report access restrictions, logout and password recovery.
 - Browser-based desktop/mobile screenshot capture: automated, with artifacts retained for review.
 - **Deployment and production acceptance remain outstanding.** See [cPanel runbook](docs/CPANEL_DEPLOYMENT.md).
+
+Latest discovery source inventory: [coverage and activation](docs/DISCOVERY_COVERAGE.md). Evaluate live breadth and accuracy before marking any category Advanced.
