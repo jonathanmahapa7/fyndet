@@ -40,3 +40,6 @@
 
 ## Acceptance principle
 FyndEt is finished when the **live product actually performs** the authorised investigation, subscription and operational workflows across cPanel and real providers, not simply when the code or documentation exists. Record all launch test outputs and sign-offs before claiming completion.
+
+## Discovery expansion — 22 October 2026
+Expanded investigation worker now performs A/AAAA/MX/NS/CAA/TXT and SPF/DMARC/MTA-STS/TLS reporting, with optional exact-email public web indexing via an approved Brave Search API subscription, GitHub commit references, and licensed HIBP breach metadata, subject to verified ownership. Source status and provenance are recorded. Web, GitHub and HIBP provider access default off until authorised credentials are configured. No source should be called Advanced unless live testing confirms real breadth, accuracy, entitlement, rate limits and user coverage.
