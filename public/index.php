@@ -31,11 +31,43 @@ function url(string $path=''):string{return '/'.ltrim($path,'/');}
 function go(string $path):never {header('Location: '.url($path),true,303);exit;}
 function csrf():string {if(empty($_SESSION['csrf']))$_SESSION['csrf']=bin2hex(random_bytes(32));return $_SESSION['csrf'];}
 function verifyCsrf():void {if(!hash_equals(csrf(),(string)($_POST['_csrf']??''))) {http_response_code(419);exit('Invalid session token. Please go back, reload and try again.');}}
-function user():?array {if(empty($_SESSION['uid']))return null;$s=db()->prepare('SELECT id,email,name,plan,subscription_status,email_verified_at,session_version FROM users WHERE id=?');$s->execute([$_SESSION['uid']]);$r=$s->fetch();if(!$r || (int)$r['session_version']!==(int)($_SESSION['sv']??-1))return null;return $r;}
+function activeBusinessOrg(int $userId):?array {
+ $q=db()->prepare("SELECT o.id,o.owner_user_id FROM organisation_members m JOIN organisations o ON o.id=m.organisation_id JOIN users owner ON owner.id=o.owner_user_id WHERE m.user_id=? AND owner.plan='business' AND owner.subscription_status IN ('active','trialing') ORDER BY o.id LIMIT 1");
+ $q->execute([$userId]);return $q->fetch()?:null;
+}
+function effectivePlan(int $userId,string $personalPlan):string {
+ return activeBusinessOrg($userId)?'business':$personalPlan;
+}
+function lockEntitlement(int $userId):string {
+ // Called inside an active SQL transaction: lock the shared organisation owner
+ // so multiple concurrent team searches cannot consume the final credit twice.
+ $org=activeBusinessOrg($userId);$lockingId=$org?(int)$org['owner_user_id']:$userId;
+ $q=db()->prepare('SELECT plan FROM users WHERE id=? FOR UPDATE');$q->execute([$lockingId]);$record=$q->fetch();
+ if(!$record)throw new DomainException('Account not available.');
+ return $org?'business':(string)$record['plan'];
+}
+function user():?array {
+ if(empty($_SESSION['uid']))return null;
+ $q=db()->prepare('SELECT id,email,name,plan,subscription_status,email_verified_at,session_version FROM users WHERE id=?');$q->execute([$_SESSION['uid']]);$r=$q->fetch();
+ if(!$r||(int)$r['session_version']!==(int)($_SESSION['sv']??-1))return null;
+ $r['personal_plan']=$r['plan'];
+ $r['plan']=effectivePlan((int)$r['id'],(string)$r['plan']);
+ return $r;
+}
 function mustUser():array {$u=user();if(!$u)go('login');return $u;}
 function flash(?string $message=null):string {if($message!==null){$_SESSION['flash']=$message;return '';} $s=$_SESSION['flash']??'';unset($_SESSION['flash']);return $s;}
 function credits(string $plan):int{return ['free'=>2,'starter'=>25,'pro'=>100,'business'=>250][$plan]??2;}
-function used(int $id):int {$s=db()->prepare('SELECT COUNT(*) FROM usage_ledger WHERE user_id=? AND period=?');$s->execute([$id,gmdate('Y-m')]);return (int)$s->fetchColumn();}
+function used(int $id):int {
+ $org=activeBusinessOrg($id);
+ if($org){
+  $s=db()->prepare('SELECT COUNT(*) FROM usage_ledger l JOIN organisation_members m ON m.user_id=l.user_id WHERE m.organisation_id=? AND l.period=?');
+  $s->execute([(int)$org['id'],gmdate('Y-m')]);
+ }else{
+  $s=db()->prepare('SELECT COUNT(*) FROM usage_ledger WHERE user_id=? AND period=?');
+  $s->execute([$id,gmdate('Y-m')]);
+ }
+ return (int)$s->fetchColumn();
+}
 function pageTop(string $title,bool $app=false):void {
  $u=user();$title=esc($title);$notice=flash();
  $path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH)?:'/';
@@ -128,8 +160,8 @@ try {
   if(!hash_equals($u['email'],$target))throw new DomainException('Self-check mode currently supports only your registered email address. Third-party investigations require a separate authorised verification workflow.');
   if(empty($_POST['authorised']))throw new DomainException('You must confirm that you are authorised to investigate this address.');
   $pdo=db();$pdo->beginTransaction();
-  $lock=$pdo->prepare('SELECT id,plan FROM users WHERE id=? FOR UPDATE');$lock->execute([$u['id']]);$locked=$lock->fetch();
-  if(used((int)$u['id'])>=credits($locked['plan'])){$pdo->rollBack();throw new DomainException('Your monthly investigation credits are used. Contact support to discuss an upgrade.');}
+  $lockedPlan=lockEntitlement((int)$u['id']);
+  if(used((int)$u['id'])>=credits($lockedPlan)){$pdo->rollBack();throw new DomainException('Your monthly investigation credits are used. Contact support to discuss an upgrade.');}
   $id=bin2hex(random_bytes(16));$q=$pdo->prepare('INSERT INTO investigations(id,user_id,target_email,purpose) VALUES(?,?,?,?)');$q->execute([$id,$u['id'],$target,$purpose]);
   $q=$pdo->prepare('INSERT INTO usage_ledger(user_id,investigation_id,period) VALUES(?,?,?)');$q->execute([$u['id'],$id,gmdate('Y-m')]);$pdo->commit();flash('Investigation queued. The cPanel cron worker will process it.');go('app/report?id='.$id);
  }
