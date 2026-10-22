@@ -28,9 +28,9 @@ If cPanel cannot point the domain document root at \`public\`, deploy only the *
 8. Enable backups and test restoration on staging before real customer data.
 
 ## Important launch blockers
-- Registration lacks email ownership verification, MFA, password reset, CAPTCHA / sign-in throttling and provider-independent abuse monitoring. **Not production approved** until these are implemented.
-- Billing checkout, subscription webhook synchronisation, refund/dunning and price enforcement are **not yet implemented**. Never charge customers by manually flipping the user plan.
-- Only legitimate domain-level DNS indicators are implemented; public-account and breach providers are not connected. Avoid promising otherwise.
+- Email ownership verification and basic database-backed login throttling are implemented but require real outbound mail testing; MFA, password reset, CAPTCHA / bot detection and provider-independent abuse monitoring remain outstanding. **Not production approved** until these are implemented.
+- Stripe hosted checkout and signed webhook subscription-state updates are implemented behind provider configuration, but portal/cancellation, renewal/dunning, refunds, taxes and integration tests are outstanding. No payments have been tested or activated.
+- Public DNS checks are implemented. Optional GitHub exact-email public commit search and a Have I Been Pwned licensed API adapter are implemented, disabled by default. Their actual coverage, credentials, licence permissions, API reliability and UI must be validated on staging. This is not universal account discovery.
 - Legally reviewed public policies and a proper contact address are missing.
 - No live cPanel account details, host, DNS, domain, deployed certificate or production smoke test results have been supplied.
 - Configure application-root handling for split webroot deployments.
@@ -42,3 +42,9 @@ Back up the release tree, database and private configuration separately before c
 
 ## Explicitly forbidden claims
 Do not say the site is fully production ready, subscription-functional, breached-data-enabled or deployed until these are independently verified.
+
+## Optional source configuration
+Set `GITHUB_PUBLIC_COMMITS_ENABLED=1` and a valid `GITHUB_TOKEN` only after verifying GitHub API terms, throttling and permitted scope. Set `HIBP_ENABLED=1` and `HIBP_API_KEY` only after verifying your paid provider licence and acceptable-use restrictions. Both adapters operate only on verified self-checks; never turn them on for unrestricted third-party email enumeration.
+
+## Stripe configuration
+Only where Stripe can legally serve the operating business: configure `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and the three `STRIPE_PRICE_*` identifiers. Add `https://YOUR-DOMAIN/billing/webhook` as a production webhook, subscribe to `checkout.session.completed` and `customer.subscription.created`, `customer.subscription.updated` and `customer.subscription.deleted`; ensure signature verification and idempotent replay tests. Configure taxes, cancellations, customer portal, refunds and invoice policies before activating checkout. Never paste payment or API secrets into GitHub.
