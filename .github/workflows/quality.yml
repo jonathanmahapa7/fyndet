@@ -1,0 +1,31 @@
+name: FyndEt quality checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  php-and-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, mbstring
+          coverage: none
+      - name: Lint all PHP
+        run: |
+          find public bin -name '*.php' -type f -print0 | xargs -0 -n1 php -l
+      - name: Check essential deployment files
+        run: |
+          test -f public/.htaccess
+          test -f public/assets/style.css
+          test -f public/assets/app.js
+          test -f database/schema.sql
+          test -f .env.example
+          test -f docs/CPANEL_DEPLOYMENT.md
+      - name: Ensure no committed environment secrets
+        run: |
+          test ! -e .env
+          test ! -e public/.env
