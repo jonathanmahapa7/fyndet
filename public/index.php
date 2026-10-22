@@ -50,6 +50,7 @@ $path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH)?:'/';
 try {
  require $root.'/app/identity.php';
  require $root.'/app/billing.php';
+ require $root.'/app/report_export.php';
  if($path==='/logout'&&$_SERVER['REQUEST_METHOD']==='POST'){verifyCsrf();$_SESSION=[];session_regenerate_id(true);go('');}
  if($path==='/register'&&$_SERVER['REQUEST_METHOD']==='POST'){
   verifyCsrf();$email=strtolower(trim((string)($_POST['email']??'')));$name=trim((string)($_POST['name']??''));$pass=(string)($_POST['password']??'');
@@ -115,7 +116,7 @@ try {
   if($path==='/app/report'){
    $id=(string)($_GET['id']??'');$q=db()->prepare('SELECT * FROM investigations WHERE id=? AND user_id=?');$q->execute([$id,$u['id']]);$report=$q->fetch();
    if(!$report){http_response_code(404);echo '<section class="panel"><h2>Report not found.</h2></section>';}
-   else{echo '<section class="panel report-panel"><div class="report-title"><div><p class="eyebrow">INVESTIGATION / '.esc(substr($id,0,8)).'</p><h2>'.esc($report['target_email']).'</h2></div><span class="status">'.esc(strtoupper($report['status'])).'</span></div>';
+   else{echo '<section class="panel report-panel">';if(in_array($u['plan'],['starter','pro','business'],true)&&in_array($report['status'],['complete','partial'],true)){echo '<div class="report-actions"><span class="eyebrow">EXPORT OPTIONS</span><div><a class="button button-outline button-small" href="/app/reports/export?format=pdf&amp;id='.esc($id).'">PDF report ↗</a>';if(in_array($u['plan'],['pro','business'],true))echo '<a class="button button-outline button-small" href="/app/reports/export?format=csv&amp;id='.esc($id).'">CSV export ↗</a>';echo '</div></div>';}echo '<div class="report-title"><div><p class="eyebrow">INVESTIGATION / '.esc(substr($id,0,8)).'</p><h2>'.esc($report['target_email']).'</h2></div><span class="status">'.esc(strtoupper($report['status'])).'</span></div>';
    if($report['result_json']){$result=json_decode($report['result_json'],true)?:[];echo '<p class="muted">Collected at '.esc($result['retrieved_at']??'').'. DNS records indicate infrastructure configuration, not the existence of online accounts.</p><div class="result-grid">';
    foreach(($result['records']??[]) as $type=>$values){echo '<article class="result-card"><p class="eyebrow">'.esc($type).'</p>';if($values){foreach($values as $v)echo '<p class="mono">'.esc((string)$v).'</p>';}else echo '<p class="muted">No record observed in this lookup.</p>';echo '</article>';}
    echo '</div>';
