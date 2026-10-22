@@ -3,7 +3,7 @@ declare(strict_types=1);
 /** Tenant-isolated export. Never serve a report without session and entitlement checks. */
 if($path!=='/app/reports/export')return;
 if($_SERVER['REQUEST_METHOD']!=='GET'){http_response_code(405);exit;}
-$u=mustUser();$format=(string)($_GET['format']??'pdf');$id=(string)($_GET['id']??'');
+$u=mustUser();$exportBucket='export|'.$u['id'];if(!authAllowed($exportBucket,15,3600))throw new DomainException('Hourly report export allowance reached. Try again later.');authFailed($exportBucket);$format=(string)($_GET['format']??'pdf');$id=(string)($_GET['id']??'');
 if(!preg_match('/^[0-9a-f]{32}$/',$id)||!in_array($format,['pdf','csv'],true))throw new DomainException('Invalid report or export format.');
 $allowed=match($format){
  'pdf'=>in_array($u['plan'],['starter','pro','business'],true),
