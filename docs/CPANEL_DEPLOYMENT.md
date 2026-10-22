@@ -66,3 +66,6 @@ Admin access requires explicit `users.is_platform_admin=1` granted by a trusted 
 
 ## Multi-factor authentication
 Authenticators compatible with RFC 6238 can use the manually displayed setup secret. MFA secrets are AES-256-GCM encrypted using `APP_KEY`; configure this with 64 random hexadecimal characters before opening registrations. **Do not rotate APP_KEY without a planned MFA re-enrolment process.** Users must securely retain one-time recovery codes. SMS is not required. Platform administrators should enforce MFA as an organisational operational policy.
+
+## Optional recurring monitoring
+Apply `database/007_monitoring.sql`. Schedule `bin/schedule-monitoring-cpanel.php` daily under the cPanel user. Only verified Pro or Business accounts opting in are eligible. Each automated check uses a monthly credit and may be skipped when credits run out. The normal investigation worker records comparison events after completion. Do not advertise guaranteed notification delivery until outbound notification channels are implemented and tested.
