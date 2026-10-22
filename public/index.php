@@ -37,7 +37,29 @@ function credits(string $plan):int{return ['free'=>2,'starter'=>25,'pro'=>100,'b
 function used(int $id):int {$s=db()->prepare('SELECT COUNT(*) FROM usage_ledger WHERE user_id=? AND period=?');$s->execute([$id,gmdate('Y-m')]);return (int)$s->fetchColumn();}
 function pageTop(string $title,bool $app=false):void {
  $u=user();$title=esc($title);$notice=flash();
- echo '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#08151e"><meta name="description" content="FyndEt — Evidence-led email footprint intelligence. Understand the signals, not just the address."><title>'.$title.' — FyndEt</title><link rel="stylesheet" href="/assets/style.css"><script defer src="/assets/app.js"></script></head><body>';
+ $path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH)?:'/';
+ $publicRoutes=[
+  '/'=>['Email Digital Footprint Investigation','Discover evidence-backed domain signals, permitted public traces and authorised breach exposure related to your own email address.'],
+  '/pricing'=>['Plans and Pricing','Compare Free, Starter, Pro and Business investigation credits and the available subscription features.'],
+  '/how-it-works'=>['How FyndEt Works','Explore how FyndEt verifies email ownership, checks approved sources, qualifies evidence and reports uncertainty.'],
+  '/contact'=>['Contact and Custom Plans','Contact FyndEt about organisation requirements, custom plans and responsible intelligence use.'],
+  '/legal'=>['Privacy and Responsible Use','Understand FyndEt privacy commitments, lawful-use restrictions and source transparency.']
+ ];
+ $indexable=array_key_exists($path,$publicRoutes);
+ $origin=rtrim(cfg('APP_URL',''),' /');
+ $trustedOrigin=preg_match('~^https://[a-z0-9.-]+(?::443)?$~i',$origin)===1?$origin:'';
+ $description=$publicRoutes[$path][1]??'A private, evidence-led email intelligence workspace.';
+ $pageTitle=$indexable?$publicRoutes[$path][0]:$title;
+ if(!$indexable)header('X-Robots-Tag: noindex, nofollow, noarchive');
+ echo '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#08151e"><meta name="description" content="'.esc($description).'"><meta name="robots" content="'.($indexable&&$trustedOrigin?'index,follow,max-image-preview:large':'noindex,nofollow').'"><title>'.esc($pageTitle).' | FyndEt</title>';
+ if($trustedOrigin&&$indexable){
+  $canonical=$trustedOrigin.($path==='/'?'/':$path);
+  echo '<link rel="canonical" href="'.esc($canonical).'"><meta property="og:type" content="website"><meta property="og:site_name" content="FyndEt"><meta property="og:title" content="'.esc($pageTitle).'"><meta property="og:description" content="'.esc($description).'"><meta property="og:url" content="'.esc($canonical).'"><meta name="twitter:card" content="summary_large_image">';
+  $schema=['@context'=>'https://schema.org','@type'=>'WebSite','name'=>'FyndEt','url'=>$trustedOrigin.'/','description'=>'Evidence-led email and digital-footprint investigations with verified self-check restrictions.'];
+  if($path==='/')echo '<script type="application/ld+json">'.json_encode($schema,JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP).'</script>';
+ }
+ echo '<link rel="stylesheet" href="/assets/style.css"><script defer src="/assets/app.js"></script></head><body>';
+
  echo '<div class="site-shell"><header class="site-header"><div class="container header-in"><a class="brand" href="/" aria-label="FyndEt home"><span class="brand-mark"><span></span><span></span><span></span><span></span></span><span>fynd<span class="brand-accent">et</span><sup>®</sup></span></a><nav class="desktop-nav" aria-label="Primary"><a href="/#platform">Platform</a><a href="/how-it-works">How it works</a><a href="/pricing">Pricing</a><a href="/#faq">FAQs</a></nav><div class="nav-actions">';
  if($u) echo '<a class="text-link" href="/app">Dashboard</a><form method="post" action="/logout"><input type="hidden" name="_csrf" value="'.csrf().'"><button class="button button-small button-outline" type="submit">Sign out <span>↗</span></button></form>';
  else echo '<a class="text-link" href="/login">Log in</a><a class="button button-small button-accent" href="/register">Get started <span>↗</span></a>';
