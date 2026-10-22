@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS monitoring_profiles (
+ user_id BIGINT UNSIGNED PRIMARY KEY,
+ enabled TINYINT(1) NOT NULL DEFAULT 0,
+ interval_days TINYINT UNSIGNED NOT NULL DEFAULT 7,
+ last_queued_at DATETIME NULL,
+ last_digest CHAR(64) NULL,
+ last_changed_at DATETIME NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS monitoring_events (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ user_id BIGINT UNSIGNED NOT NULL,
+ investigation_id CHAR(32) NOT NULL,
+ event_type ENUM('first_scan','changed','unchanged') NOT NULL,
+ observed_digest CHAR(64) NOT NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ INDEX idx_user_created(user_id,created_at),
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
