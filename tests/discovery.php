@@ -4,6 +4,7 @@ if(PHP_SAPI!=='cli')exit(1);
 require dirname(__DIR__).'/app/discovery.php';
 require dirname(__DIR__).'/app/certificates.php';
 require dirname(__DIR__).'/app/providers.php';
+require dirname(__DIR__).'/app/federated_search.php';
 function verify(bool $valid,string $name):void{if(!$valid){fwrite(STDERR,"FAIL: $name\n");exit(1);}echo "PASS: $name\n";}
 $email='qa@example.com';
 $dns=fyndetDnsIntelligence($email);
@@ -22,4 +23,8 @@ verify($git['state']==='not_checked','Disabled public commits source is explicit
 $all=fyndetCorrelate(['domain'=>$dns,'web'=>$web,'ct'=>$ct,'breaches'=>$hibp,'github'=>$git]);
 verify(isset($all['source_states']['source_unavailable'])&&$all['source_states']['source_unavailable']>=2,'Evidence coverage tracks unavailable sources');
 verify(str_contains($all['limitations'],'Not found != does not exist'),'Correlation communicates uncertainty');
+foreach(['public_documents','professional_references','community_references'] as $category){
+ $status=fyndetFederatedSearch($email,['BRAVE_SEARCH_ENABLED'=>'0'],$category);
+ verify($status['state']==='not_checked','Federated '.$category.' respects disabled-provider gate');
+}
 echo "ALL DISCOVERY CONTRACT TESTS PASSED\n";
