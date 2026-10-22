@@ -35,6 +35,8 @@ jobs:
           test -f app/mfa.php
           test -f database/006_mfa.sql
           test -f database/004_organisations_privacy.sql
+      - name: Validate discovery coverage and disabled-source semantics
+        run: php tests/discovery.php
       - name: Validate Composer project
         run: composer validate --no-check-publish
       - name: Ensure no committed environment secrets
