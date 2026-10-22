@@ -31,6 +31,8 @@ jobs:
           test -f app/billing.php
           test -f app/report_export.php
           test -f app/providers.php
+          test -f app/workspace.php
+          test -f database/004_organisations_privacy.sql
       - name: Validate Composer project
         run: composer validate --no-check-publish
       - name: Ensure no committed environment secrets
