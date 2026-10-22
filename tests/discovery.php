@@ -12,7 +12,7 @@ verify(in_array($dns['state'],['observed','not_found'],true),'Domain DNS query r
 verify(is_array($dns['posture']??null),'Domain email-security posture is recorded');
 $web=fyndetPublicWebEvidence($email,['BRAVE_SEARCH_ENABLED'=>'0']);
 verify($web['state']==='not_checked','Unconfigured web search correctly marked not checked');
-$web=fyndetPublicWebEvidence($email,['BRAVE_SEARCH_ENABLED'=>'1','BRAVE_SEARCH_API_KEY'=>'']);
+$web=fyndetPublicWebEvidence($email,['BRAVE_SEARCH_ENABLED'=>'1','BRAVE_SEARCH_STORAGE_LICENSE_CONFIRMED'=>'1','BRAVE_SEARCH_API_KEY'=>'']);
 verify($web['state']==='source_unavailable','Enabled web search without key reports unavailable, not negative evidence');
 $ct=fyndetCertificateEvidence($email,['CERTIFICATE_TRANSPARENCY_ENABLED'=>'0']);
 verify($ct['state']==='not_checked','Disabled certificate transparency source is truthful');
