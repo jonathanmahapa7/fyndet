@@ -18,22 +18,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install Chromium for visual review
+      - name: Install browser test dependencies
         run: |
-          npx --yes playwright@1.56.1 install chromium --with-deps
+          npm install --no-save playwright@1.56.1
+          npx playwright install chromium --with-deps
       - name: Start public PHP routes
         run: |
-          php -S 127.0.0.1:8099 -t public public/index.php >/tmp/fyndet-preview.log 2>&1 &
+          php -S 127.0.0.1:8099 -t public public/router.php >/tmp/fyndet-preview.log 2>&1 &
           sleep 2
           curl --fail http://127.0.0.1:8099/ >/dev/null
           curl --fail http://127.0.0.1:8099/pricing >/dev/null
-      - name: Capture desktop and mobile pages
-        run: |
-          mkdir -p design/qa
-          npx --yes playwright@1.56.1 screenshot --browser chromium --viewport-size "1440,900" --full-page http://127.0.0.1:8099/ design/qa/home-desktop.png
-          npx --yes playwright@1.56.1 screenshot --browser chromium --viewport-size "390,844" --full-page http://127.0.0.1:8099/ design/qa/home-mobile.png
-          npx --yes playwright@1.56.1 screenshot --browser chromium --viewport-size "1440,900" --full-page http://127.0.0.1:8099/pricing design/qa/pricing-desktop.png
-          npx --yes playwright@1.56.1 screenshot --browser chromium --viewport-size "390,844" --full-page http://127.0.0.1:8099/register design/qa/register-mobile.png
+      - name: Assert readable responsive pages and capture screenshots
+        run: node tests/visual.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: fyndet-design-review
