@@ -24,3 +24,10 @@
 .report-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-bottom:23px;border-bottom:1px solid var(--line);margin-bottom:23px}
 .report-actions>div{display:flex;flex-wrap:wrap;gap:7px}
 @media(max-width:600px){.workspace-nav{gap:6px}.workspace-nav a{padding:9px 10px}.report-delete{min-width:155px}.report-actions{align-items:flex-start;flex-direction:column}.api-secret,.mfa-codes{font-size:11px}}
+
+/* Expanded investigation provenance */
+.source-observation{padding:15px 0;border-top:1px solid #344b50;min-width:0}
+.source-observation strong{font-size:13px;color:#edf6e7;overflow-wrap:anywhere}
+.source-observation p{margin:7px 0 10px;white-space:normal;overflow-wrap:anywhere;line-height:1.7}
+.evidence-section .report-title{flex-wrap:wrap;align-items:start}
+@media(max-width:600px){.source-observation{padding:12px 0}.evidence-section h3{font-size:20px}}
