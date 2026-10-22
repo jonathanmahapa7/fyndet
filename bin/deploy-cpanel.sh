@@ -2,7 +2,7 @@
 # FyndEt deployment helper: dedicated cPanel user and dedicated site only.
 set -Eeuo pipefail
 umask 077
-ACTION="$1"
+ACTION="${1:---check}"
 [[ "$ACTION" == "--check" || "$ACTION" == "--deploy" ]] || { echo "Usage: --check or --deploy"; exit 2; }
 ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 [[ -f "$ROOT/public/index.php" && -f "$ROOT/.env" ]] || { echo "Private FyndEt installation missing"; exit 1; }
@@ -16,7 +16,7 @@ if [[ "$ACTION" == "--check" ]]; then
   echo "Read-only check complete"
   exit 0
 fi
-[[ -n "$FYNDET_PUBLIC_ROOT" ]] || { echo "Set FYNDET_PUBLIC_ROOT to the dedicated existing FyndEt domain document root"; exit 1; }
+[[ -n "${FYNDET_PUBLIC_ROOT:-}" ]] || { echo "Set FYNDET_PUBLIC_ROOT to the dedicated existing FyndEt domain document root"; exit 1; }
 TARGET="$(cd "$FYNDET_PUBLIC_ROOT" && pwd -P)"
 [[ "$TARGET" == "$HOME/"* && "$TARGET" != "$HOME" ]] || { echo "Unsafe target path"; exit 1; }
 [[ -f "$TARGET/.fyndet-site-marker" ]] || { echo "Dedicated site marker missing; refusing to modify any site"; exit 1; }
