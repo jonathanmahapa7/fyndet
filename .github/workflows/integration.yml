@@ -49,6 +49,7 @@ jobs:
           MAIL_FROM=test@fyndet.test
           STRIPE_WEBHOOK_SECRET=whsec_test_secret
           STRIPE_PRICE_PRO=price_integration_pro
+          STRIPE_PRICE_BUSINESS=price_integration_business
           CONFIG
           mkdir -p var
           chmod 700 var
