@@ -45,6 +45,7 @@ jobs:
           DB_NAME=fyndet_test
           DB_USER=root
           DB_PASS=testpass
+          APP_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           MAIL_FROM=test@fyndet.test
           STRIPE_WEBHOOK_SECRET=whsec_test_secret
           STRIPE_PRICE_PRO=price_integration_pro
