@@ -11,8 +11,9 @@ function apiAuth():array {
  $hash=hash('sha256',$m[1]);
  $q=db()->prepare('SELECT u.id,u.email,u.plan,u.email_verified_at,t.id AS token_id FROM api_tokens t JOIN users u ON u.id=t.user_id WHERE t.token_hash=? AND t.revoked_at IS NULL');
  $q->execute([$hash]);$u=$q->fetch();
- $u['plan']=$u?effectivePlan((int)$u['id'],(string)$u['plan']):'free';
- if(!$u||empty($u['email_verified_at'])||!in_array($u['plan'],['pro','business'],true))apiReply(403,['error'=>'API access requires a verified Pro or Business account']);
+ if(!$u)apiReply(403,['error'=>'API token invalid or revoked']);
+ $u['plan']=effectivePlan((int)$u['id'],(string)$u['plan']);
+ if(empty($u['email_verified_at'])||!in_array($u['plan'],['pro','business'],true))apiReply(403,['error'=>'API access requires a verified Pro or Business account']);
  return $u;
 }
 if($path==='/app/api-keys/create'&&$_SERVER['REQUEST_METHOD']==='POST'){
