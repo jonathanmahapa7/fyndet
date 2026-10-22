@@ -27,7 +27,7 @@ if($path==='/app/privacy/export'){
 }
 if($path==='/app/investigations/delete'){
  if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit;}
- verifyCsrf();$u=mustUser();$id=(string)($_POST['id']??'');
+ verifyCsrf();$u=mustUser();if(empty($_POST['confirm_delete']))throw new DomainException('Confirm permanent deletion of this investigation.');$id=(string)($_POST['id']??'');
  if(!preg_match('/^[a-f0-9]{32}$/',$id))throw new DomainException('Invalid investigation identifier.');
  $db=db();$db->beginTransaction();
  $q=$db->prepare('SELECT status FROM investigations WHERE id=? AND user_id=? FOR UPDATE');$q->execute([$id,$u['id']]);$found=$q->fetch();
