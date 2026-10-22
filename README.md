@@ -54,3 +54,5 @@ Keep changes scoped, avoid destructive repo updates, never commit secrets, and v
 - **Deployment and production acceptance remain outstanding.** See [cPanel runbook](docs/CPANEL_DEPLOYMENT.md).
 
 Latest discovery source inventory: [coverage and activation](docs/DISCOVERY_COVERAGE.md). Evaluate live breadth and accuracy before marking any category Advanced.
+
+Product strategy: [Cross-industry benchmark](docs/CROSS_INDUSTRY_BENCHMARK.md) — digital risk, identity intelligence, exposure management, premium enterprise UX; OSINT is one example, not a boundary.
