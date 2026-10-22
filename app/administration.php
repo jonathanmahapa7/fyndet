@@ -1,8 +1,10 @@
 <?php
 declare(strict_types=1);
 function platformAdmin():array {
- $u=mustUser();$s=db()->prepare('SELECT is_platform_admin FROM users WHERE id=?');$s->execute([$u['id']]);
- if((int)$s->fetchColumn()!==1){http_response_code(403);pageTop('Access denied');echo '<main class="section container"><h1>Access denied</h1><p>Administrator permission is required.</p></main>';pageEnd();exit;}
+ $u=mustUser();$s=db()->prepare('SELECT is_platform_admin,totp_enabled FROM users WHERE id=?');$s->execute([$u['id']]);
+ $authority=$s->fetch();
+ if(!$authority||(int)$authority['is_platform_admin']!==1){http_response_code(403);pageTop('Access denied');echo '<main class="section container"><h1>Access denied</h1><p>Administrator permission is required.</p></main>';pageEnd();exit;}
+ if((int)$authority['totp_enabled']!==1){http_response_code(403);pageTop('Security requirement');echo '<main class="section container"><h1>Administrator MFA required</h1><p>Enable two-factor authentication before accessing sensitive operations.</p><a class="button button-accent" href="/app/security">Open security settings ↗</a></main>';pageEnd();exit;}
  return $u;
 }
 if($path==='/admin/privacy/resolve'&&$_SERVER['REQUEST_METHOD']==='POST'){
