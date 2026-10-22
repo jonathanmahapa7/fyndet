@@ -227,6 +227,24 @@ try {
    if($report['result_json']){$result=json_decode($report['result_json'],true)?:[];echo '<p class="muted">Collected at '.esc($result['retrieved_at']??'').'. DNS records indicate infrastructure configuration, not the existence of online accounts.</p><div class="result-grid">';
    foreach(($result['records']??[]) as $type=>$values){echo '<article class="result-card"><p class="eyebrow">'.esc($type).'</p>';if($values){foreach($values as $v)echo '<p class="mono">'.esc((string)$v).'</p>';}else echo '<p class="muted">No record observed in this lookup.</p>';echo '</article>';}
    echo '</div>';
+   $extended=$result['expanded_discovery']??[];
+   if(!empty($extended['sources'])){
+     echo '<div class="evidence-section"><p class="eyebrow">SOURCE COVERAGE & PROVENANCE</p><h3>Expanded discovery</h3><p class="muted">Source observations are not proof that the address belongs to an account. Results only cover sources actually checked.</p>';
+     foreach($extended['sources'] as $sectionName=>$section){
+       $state=(string)($section['state']??'not_checked');
+       echo '<article class="evidence-item"><div class="report-title"><h4>'.esc(ucwords(str_replace('_',' ',$sectionName))).'</h4><span class="status">'.esc(strtoupper($state)).'</span></div><p class="muted">'.esc((string)($section['reason']??'')).'</p>';
+       if(!empty($section['posture']))echo '<p class="muted">Domain posture: '.esc(json_encode($section['posture'])).'</p>';
+       foreach(array_slice($section['items']??[],0,55) as $item){
+         echo '<div class="source-observation"><strong>'.esc((string)($item['title']??$item['record_type']??$item['type']??'Observation')).'</strong>';
+         echo '<p class="mono">'.esc((string)($item['summary']??$item['value']??'')).'</p>';
+         if(!empty($item['source_url'])&&filter_var($item['source_url'],FILTER_VALIDATE_URL))echo '<a class="under-link" href="'.esc($item['source_url']).'" rel="noopener noreferrer" target="_blank">Inspect cited source ↗</a>';
+         echo '</div>';
+       }
+       echo '</article>';
+     }
+     echo '</div>';
+   }
+   if(!empty($result['evidence_summary']))echo '<p class="muted">Evidence observations: '.(int)($result['evidence_summary']['observations']??0).'. '.esc((string)($result['evidence_summary']['limitations']??'')).'</p>';
    foreach(['public_references'=>'Public footprint references','breach_exposure'=>'Breach exposure metadata'] as $key=>$heading){
      $data=$result[$key]??['state'=>'not_checked','reason'=>'Not enabled in this release','items'=>[]];
      echo '<div class="evidence-section"><div class="report-title"><h3>'.esc($heading).'</h3><span class="status">'.esc(strtoupper((string)($data['state']??'unknown'))).'</span></div><p class="muted">'.esc((string)($data['reason']??'')).'</p>';
