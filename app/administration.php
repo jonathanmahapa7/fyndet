@@ -1,0 +1,29 @@
+<?php
+declare(strict_types=1);
+function platformAdmin():array {
+ $u=mustUser();$s=db()->prepare('SELECT is_platform_admin FROM users WHERE id=?');$s->execute([$u['id']]);
+ if((int)$s->fetchColumn()!==1){http_response_code(403);throw new DomainException('Administrator permission required.');}
+ return $u;
+}
+if($path==='/admin/privacy/resolve'&&$_SERVER['REQUEST_METHOD']==='POST'){
+ verifyCsrf();$u=platformAdmin();$id=(int)($_POST['id']??0);$status=(string)($_POST['status']??'');$note=trim((string)($_POST['note']??''));
+ if($id<1||!in_array($status,['in_review','resolved','rejected'],true)||mb_strlen($note)<10||mb_strlen($note)>1500)throw new DomainException('Invalid review action. Provide a meaningful explanation.');
+ $q=db()->prepare("UPDATE privacy_requests SET status=?,reviewed_by=?,resolution_note=?,closed_at=CASE WHEN ? IN ('resolved','rejected') THEN UTC_TIMESTAMP() ELSE NULL END WHERE id=? AND status NOT IN ('resolved','rejected')");
+ $q->execute([$status,$u['id'],$note,$status,$id]);if($q->rowCount()!==1)throw new DomainException('Request could not be updated.');
+ auditEvent((int)$u['id'],'privacy.request.reviewed',(string)$id);
+ flash('Privacy request status updated.');go('admin');
+}
+if($path==='/admin'){
+ $u=platformAdmin();pageTop('Platform administration');
+ $count=db()->query('SELECT COUNT(*) FROM users')->fetchColumn();
+ $runs=db()->query('SELECT status,COUNT(*) c FROM investigations GROUP BY status')->fetchAll();
+ $requests=db()->query("SELECT p.id,p.request_type,p.details,p.status,p.created_at,u.email FROM privacy_requests p JOIN users u ON u.id=p.user_id WHERE p.status IN ('received','in_review') ORDER BY p.created_at ASC LIMIT 30")->fetchAll();
+ echo '<main class="section container"><div class="section-heading"><p class="eyebrow">FYNDET / PLATFORM ADMINISTRATION</p><h1 class="interior-title">Operational <em>overview.</em></h1><p>Access is limited to explicitly authorised platform administrators.</p></div><div class="workspace-grid"><section class="panel"><p class="eyebrow">REGISTERED ACCOUNTS</p><strong class="quota-number">'.(int)$count.'</strong></section><section class="panel"><p class="eyebrow">JOB STATES</p>';
+ foreach($runs as $r)echo '<p>'.esc($r['status']).': '.(int)$r['c'].'</p>';
+ echo '</section></div><section class="panel" style="margin-top:18px"><h2>Privacy requests requiring review</h2>';
+ if(!$requests)echo '<p class="muted">No open requests.</p>';
+ foreach($requests as $r){
+ echo '<article class="evidence-item"><p class="eyebrow">'.esc($r['request_type']).' / '.esc($r['status']).'</p><h3>'.esc($r['email']).'</h3><p>'.esc($r['details']).'</p><form class="form-stack" method="post" action="/admin/privacy/resolve"><input type="hidden" name="_csrf" value="'.csrf().'"><input type="hidden" name="id" value="'.(int)$r['id'].'"><label>Review outcome<select name="status"><option value="in_review">In review</option><option value="resolved">Resolved</option><option value="rejected">Rejected (reason required)</option></select></label><label>Resolution note<textarea name="note" required minlength="10" maxlength="1500"></textarea></label><button class="button button-accent">Save review ↗</button></form></article>';
+ }
+ echo '</section></main>';pageEnd();exit;
+}
