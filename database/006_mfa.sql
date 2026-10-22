@@ -1,0 +1,11 @@
+ALTER TABLE users ADD COLUMN totp_secret_encrypted TEXT NULL AFTER is_platform_admin;
+ALTER TABLE users ADD COLUMN totp_enabled TINYINT(1) NOT NULL DEFAULT 0 AFTER totp_secret_encrypted;
+ALTER TABLE users ADD COLUMN totp_last_step BIGINT NOT NULL DEFAULT -1 AFTER totp_enabled;
+CREATE TABLE IF NOT EXISTS totp_recovery_codes (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ user_id BIGINT UNSIGNED NOT NULL,
+ code_hash CHAR(64) NOT NULL UNIQUE,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+ INDEX idx_user(user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
