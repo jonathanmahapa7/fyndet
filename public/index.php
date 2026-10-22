@@ -80,6 +80,7 @@ try {
  require $root.'/app/report_export.php';
  require $root.'/app/workspace.php';
  require $root.'/app/administration.php';
+ require $root.'/app/api.php';
  if($path==='/robots.txt'){
   header('Content-Type: text/plain; charset=UTF-8');
   $origin=rtrim(cfg('APP_URL',''),' /');
