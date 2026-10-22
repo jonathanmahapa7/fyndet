@@ -39,3 +39,6 @@ Home, How It Works, Pricing, Contact and legally reviewed Privacy/Terms. Paid su
 
 ## Acceptance
 This project is not SEO complete merely because meta tags exist. Real domain crawlability, mobile indexing, Search Console/Bing verification, performance measurements, privacy review and truthful user-facing content must be checked after cPanel deployment.
+
+## Broader authorised discovery
+Discovery of public indexed email traces is not the same as search-engine optimisation of FyndEt's marketing pages. The optional Brave indexed-search adapter is restricted to the verified user's own address, honours provider terms, and requires BRAVE_SEARCH_ENABLED=1 plus an authorised BRAVE_SEARCH_API_KEY. Results are snippets with provenance, not conclusive identity verification.
