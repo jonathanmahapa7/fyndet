@@ -34,6 +34,11 @@ jobs:
           test -f app/workspace.php
           test -f app/mfa.php
           test -f database/006_mfa.sql
+          test -f database/007_monitoring.sql
+          test -f app/discovery.php
+          test -f app/federated_search.php
+          test -f app/certificates.php
+          test -f app/monitoring.php
           test -f database/004_organisations_privacy.sql
       - name: Validate discovery coverage and disabled-source semantics
         run: php tests/discovery.php
