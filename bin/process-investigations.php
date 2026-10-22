@@ -20,7 +20,8 @@ $dsn='mysql:host='.$env['DB_HOST'].';port='.($env['DB_PORT']??3306).';dbname='.$
 $db=new PDO($dsn,$env['DB_USER'],$env['DB_PASS']??'',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
 $lockPath=$root.'/var/worker.lock';if(!is_dir($root.'/var'))mkdir($root.'/var',0700,true);
 $lock=fopen($lockPath,'c');if(!$lock||!flock($lock,LOCK_EX|LOCK_NB)){echo "Another worker is running\n";exit(0);}
-for($i=0;$i<10;$i++){
+// Bounded work per invocation: avoid long-lived PHP cron processes on shared cPanel.
+for($i=0;$i<2;$i++){
  $db->beginTransaction();
  $s=$db->query("SELECT id,user_id,target_email FROM investigations WHERE status='queued' ORDER BY created_at ASC LIMIT 1 FOR UPDATE");
  $job=$s->fetch();
