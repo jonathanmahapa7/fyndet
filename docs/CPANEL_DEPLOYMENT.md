@@ -25,10 +25,10 @@ If cPanel cannot point the domain document root at \`public\`, deploy only the *
    \`\`\`
    Replace the PHP binary with the **verified** cPanel-provided PHP CLI executable. Store logs privately and rotate them; use no public log path. cPanel may expose \`/opt/cpanel/ea-php82/root/usr/bin/php\`.
 7. Test routing and sign-up; log in; perform a self-check; wait for the cron job or invoke the worker explicitly; verify a domain report with timestamps. Verify no secrets or SQL files are HTTP-accessible.
-8. Enable backups and test restoration on staging before real customer data.
+8. Run `composer install --no-dev --optimize-autoloader` in the private app folder (or upload a verified built vendor/ directory); run `php bin/preflight-cpanel.php` and resolve every FAIL. Enable backups and test restoration on staging before real customer data.
 
 ## Important launch blockers
-- Email ownership verification and basic database-backed login throttling are implemented but require real outbound mail testing; MFA, password reset, CAPTCHA / bot detection and provider-independent abuse monitoring remain outstanding. **Not production approved** until these are implemented.
+- Email ownership verification and basic database-backed login throttling are implemented but require real outbound mail testing; MFA, CAPTCHA / bot detection and provider-independent abuse monitoring remain outstanding. **Not production approved** until these are implemented.
 - Stripe hosted checkout and signed webhook subscription-state updates are implemented behind provider configuration, but portal/cancellation, renewal/dunning, refunds, taxes and integration tests are outstanding. No payments have been tested or activated.
 - Public DNS checks are implemented. Optional GitHub exact-email public commit search and a Have I Been Pwned licensed API adapter are implemented, disabled by default. Their actual coverage, credentials, licence permissions, API reliability and UI must be validated on staging. This is not universal account discovery.
 - Legally reviewed public policies and a proper contact address are missing.
@@ -48,3 +48,10 @@ Set `GITHUB_PUBLIC_COMMITS_ENABLED=1` and a valid `GITHUB_TOKEN` only after veri
 
 ## Stripe configuration
 Only where Stripe can legally serve the operating business: configure `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and the three `STRIPE_PRICE_*` identifiers. Add `https://YOUR-DOMAIN/billing/webhook` as a production webhook, subscribe to `checkout.session.completed` and `customer.subscription.created`, `customer.subscription.updated` and `customer.subscription.deleted`; ensure signature verification and idempotent replay tests. Configure taxes, cancellations, customer portal, refunds and invoice policies before activating checkout. Never paste payment or API secrets into GitHub.
+
+
+## Activation checklist
+- Set `PAID_BILLING_ENABLED=0` throughout staging. Enable it only after the business can accept payments in its jurisdiction and all paid-plan entitlements, tax rules, cancellation, dunning, hosted portal and payments are tested.
+- Set `SALES_EMAIL` to an actual mailbox controlled by the operating business. The repository does not assume ownership of fyndet.com or any other domain.
+- Configure `FYNDET_APP_ROOT` for split-document-root installations and verify PHP receives the Apache environment variable.
+- The current developer tests run against PHP and MySQL on GitHub Actions; these do not replace a production cPanel smoke test, backup restore, legal review or accessibility review.
