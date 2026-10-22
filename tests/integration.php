@@ -18,6 +18,15 @@ function formToken(string $html):string{
  check((bool)preg_match('/name="_csrf" value="([a-f0-9]{64})"/',$html,$m),'CSRF token rendered');
  return $m[1];
 }
+function signedWebhook(array $event,string $secret='whsec_test_secret'):array{
+ global $base;
+ $json=json_encode($event,JSON_UNESCAPED_SLASHES);$time=time();
+ $digest=hash_hmac('sha256',$time.'.'.$json,$secret);
+ $c=curl_init($base.'/billing/webhook');
+ curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$json,CURLOPT_HTTPHEADER=>['Content-Type: application/json','Stripe-Signature: t='.$time.',v1='.$digest],CURLOPT_TIMEOUT=>12]);
+ $response=curl_exec($c);$status=(int)curl_getinfo($c,CURLINFO_RESPONSE_CODE);curl_close($c);
+ return [$status,(string)$response];
+}
 function lastMailToken():string{
  $lines=file(dirname(__DIR__).'/var/test-mail.log',FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES);
  check((bool)$lines,'Test mail captured');
@@ -44,6 +53,14 @@ check($exit===0,'Cron-compatible CLI worker executes successfully');
 check($status===200&&str_contains($body,'MX')&&str_contains($body,'Public footprint references'),'Completed report displays source-labelled findings');
 [$status]=request('/app/reports/export?format=pdf&id='.$id);
 check($status===422,'Free-tier paid export is denied server-side');
+$event=['id'=>'evt_integration_pro_001','type'=>'customer.subscription.updated','data'=>['object'=>['customer'=>'cus_integration_001','metadata'=>['user_id'=>'1'],'items'=>['data'=>[['price'=>['id'=>'price_integration_pro']]]],'status'=>'active']]];
+[$webhookStatus]=signedWebhook($event);check($webhookStatus===200,'Signed billing webhook accepts legitimate subscription event');
+[$repeatStatus]=signedWebhook($event);check($repeatStatus===200,'Webhook event replay is idempotent');
+[$status,$csv]=request('/app/reports/export?format=csv&id='.$id);
+check($status===200&&str_contains($csv,'Public DNS'),'Pro entitlement unlocks CSV evidence export');
+[$status,$pdf]=request('/app/reports/export?format=pdf&id='.$id);
+check($status===200&&str_starts_with($pdf,'%PDF-'),'Pro entitlement unlocks actual PDF report');
+
 [$status,$body]=request('/app');$csrf=formToken($body);
 [$status]=request('/logout','POST',['_csrf'=>$csrf]);check($status===303,'Session logout succeeds');
 [$status,$body]=request('/forgot-password');$csrf=formToken($body);
