@@ -1,0 +1,9 @@
+ALTER TABLE users ADD COLUMN session_version INT UNSIGNED NOT NULL DEFAULT 0 AFTER email_verified_at;
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+ token_hash CHAR(64) PRIMARY KEY,
+ user_id BIGINT UNSIGNED NOT NULL,
+ expires_at DATETIME NOT NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ INDEX idx_user (user_id),
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
