@@ -22,7 +22,8 @@ if(PHP_SAPI!=='cli'){
  session_start();
  header('Cache-Control: no-store');
  header('X-Content-Type-Options: nosniff');
- header('Content-Security-Policy: default-src \'self\'; img-src \'self\' data:; style-src \'self\' https://fonts.googleapis.com; font-src \'self\' https://fonts.gstatic.com; script-src \'self\'; object-src \'none\'; base-uri \'self\'; form-action \'self\'');
+ $GLOBALS['csp_nonce']=base64_encode(random_bytes(18));
+ header('Content-Security-Policy: default-src \'self\'; img-src \'self\' data:; style-src \'self\' https://fonts.googleapis.com; font-src \'self\' https://fonts.gstatic.com; script-src \'self\' \'nonce-'. $GLOBALS['csp_nonce'] .'\'; object-src \'none\'; base-uri \'self\'; form-action \'self\'');
 }
 function db():PDO {static $pdo=null;if(!$pdo){$dsn='mysql:host='.cfg('DB_HOST','localhost').';port='.cfg('DB_PORT','3306').';dbname='.cfg('DB_NAME').';charset=utf8mb4';$pdo=new PDO($dsn,cfg('DB_USER'),cfg('DB_PASS'),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);}return $pdo;}
 function esc(?string $s):string{return htmlspecialchars((string)$s,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');}
@@ -56,7 +57,7 @@ function pageTop(string $title,bool $app=false):void {
   $canonical=$trustedOrigin.($path==='/'?'/':$path);
   echo '<link rel="canonical" href="'.esc($canonical).'"><meta property="og:type" content="website"><meta property="og:site_name" content="FyndEt"><meta property="og:title" content="'.esc($pageTitle).'"><meta property="og:description" content="'.esc($description).'"><meta property="og:url" content="'.esc($canonical).'"><meta name="twitter:card" content="summary_large_image">';
   $schema=['@context'=>'https://schema.org','@type'=>'WebSite','name'=>'FyndEt','url'=>$trustedOrigin.'/','description'=>'Evidence-led email and digital-footprint investigations with verified self-check restrictions.'];
-  if($path==='/')echo '<script type="application/ld+json">'.json_encode($schema,JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP).'</script>';
+  if($path==='/')echo '<script type="application/ld+json" nonce="'.esc($GLOBALS['csp_nonce']??'').'">'.json_encode($schema,JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP).'</script>';
  }
  echo '<link rel="stylesheet" href="/assets/style.css"><script defer src="/assets/app.js"></script></head><body>';
 
