@@ -53,8 +53,11 @@ jobs:
           chmod 700 var
       - name: Install PDF rendering dependencies
         run: composer install --no-dev --prefer-dist --no-interaction
-      - name: Apply all migrations
-        run: php tests/install-test-db.php
+      - name: Apply cPanel migration runner
+        run: |
+          php bin/migrate-cpanel.php --check
+          php bin/migrate-cpanel.php --apply
+          php bin/migrate-cpanel.php --apply
       - name: Start local PHP server
         run: |
           php -S 127.0.0.1:8099 -t public public/router.php >/tmp/fyndet-integration-server.log 2>&1 &
