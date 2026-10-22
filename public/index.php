@@ -122,6 +122,7 @@ try {
  require $root.'/app/administration.php';
  require $root.'/app/api.php';
  require $root.'/app/mfa.php';
+ require $root.'/app/privacy_data.php';
  if($path==='/robots.txt'){
   header('Content-Type: text/plain; charset=UTF-8');
   $origin=rtrim(cfg('APP_URL',''),' /');
