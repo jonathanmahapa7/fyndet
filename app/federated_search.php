@@ -15,6 +15,7 @@ function fyndetFederatedSearch(string $email,array $env,string $category):array{
  ];
  if(!isset($config[$category]))return fyndetDiscoveryResult('invalid','Unsupported public source category');
  if(($env['BRAVE_SEARCH_ENABLED']??'0')!=='1')return fyndetDiscoveryResult('not_checked','Indexed web provider not enabled');
+ if(($env['BRAVE_SEARCH_STORAGE_LICENSE_CONFIRMED']??'0')!=='1')return fyndetDiscoveryResult('not_checked','Required indexed-result storage rights not yet confirmed');
  $token=(string)($env['BRAVE_SEARCH_API_KEY']??'');
  if($token==='')return fyndetDiscoveryResult('source_unavailable','Brave Search API key unavailable');
  if(!function_exists('curl_init'))return fyndetDiscoveryResult('source_unavailable','PHP cURL missing');
