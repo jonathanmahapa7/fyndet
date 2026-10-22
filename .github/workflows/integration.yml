@@ -13,7 +13,7 @@ on:
 jobs:
   app-flow:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     services:
       mysql:
         image: mysql:8.0
@@ -67,6 +67,20 @@ jobs:
           curl --fail http://127.0.0.1:8099/ >/dev/null
       - name: Exercise registration, verification, investigation, reports and recovery
         run: php tests/integration.php
+      - name: Browser install for authenticated responsive review
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install chromium --with-deps
+      - name: Process queued member reports
+        run: php bin/process-investigations.php
+      - name: Verify authenticated mobile and desktop screens
+        run: node tests/visual-auth.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fyndet-authenticated-design-review
+          path: design/qa/authenticated/*.png
+          retention-days: 14
       - name: Print server diagnostics on failure
         if: failure()
         run: |
