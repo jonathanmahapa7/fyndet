@@ -45,7 +45,7 @@ if($path==='/app/api-keys'){
  echo '</section></div><section class="panel" style="margin-top:18px"><h2>API endpoints</h2><p class="mono">POST /api/v1/investigations</p><p class="mono">GET /api/v1/investigations/{id}</p><p class="muted">Send Authorization: Bearer YOUR_TOKEN and application/json; only your verified registered email is eligible. Requests are counted against your monthly credits. This API does not offer bulk account enumeration.</p></section></main>';pageEnd();exit;
 }
 if($path==='/api/v1/investigations'&&$_SERVER['REQUEST_METHOD']==='POST'){
- $u=apiAuth();$raw=file_get_contents('php://input',false,null,0,10000);$input=json_decode($raw,true);
+ $u=apiAuth();$bucket='api-create|'.$u['id'];$limit=$u['plan']==='business'?6:4;if(!authAllowed($bucket,$limit,60))apiReply(429,['error'=>'API rate limit reached']);authFailed($bucket);$raw=file_get_contents('php://input',false,null,0,10000);$input=json_decode($raw,true);
  if(!is_array($input))apiReply(400,['error'=>'JSON body required']);
  $email=strtolower(trim((string)($input['email']??'')));$purpose=trim((string)($input['purpose']??''));
  if(!filter_var($email,FILTER_VALIDATE_EMAIL)||!hash_equals($u['email'],$email)||mb_strlen($purpose)<10||mb_strlen($purpose)>400)apiReply(422,['error'=>'Only verified registered email self-check with valid purpose is allowed']);
