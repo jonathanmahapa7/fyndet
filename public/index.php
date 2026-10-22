@@ -19,7 +19,7 @@ if(PHP_SAPI!=='cli'){
  session_start();
  header('Cache-Control: no-store');
  header('X-Content-Type-Options: nosniff');
- header('Content-Security-Policy: default-src \'self\'; img-src \'self\' data:; style-src \'self\'; script-src \'self\'; object-src \'none\'; base-uri \'self\'; form-action \'self\'');
+ header('Content-Security-Policy: default-src \'self\'; img-src \'self\' data:; style-src \'self\' https://fonts.googleapis.com; font-src \'self\' https://fonts.gstatic.com; script-src \'self\'; object-src \'none\'; base-uri \'self\'; form-action \'self\'');
 }
 function db():PDO {static $pdo=null;if(!$pdo){$dsn='mysql:host='.cfg('DB_HOST','localhost').';port='.cfg('DB_PORT','3306').';dbname='.cfg('DB_NAME').';charset=utf8mb4';$pdo=new PDO($dsn,cfg('DB_USER'),cfg('DB_PASS'),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);}return $pdo;}
 function esc(?string $s):string{return htmlspecialchars((string)$s,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');}
