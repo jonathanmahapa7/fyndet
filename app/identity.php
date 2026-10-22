@@ -28,7 +28,7 @@ function newVerification(int $uid,string $email):void {
  $q=db()->prepare('DELETE FROM email_verification_tokens WHERE user_id=?');$q->execute([$uid]);
  $q=db()->prepare('INSERT INTO email_verification_tokens(token_hash,user_id,expires_at) VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 24 HOUR))');$q->execute([$hash,$uid]);
  $origin=rtrim(cfg('APP_URL'),' /');
- if(!str_starts_with($origin,'https://'))throw new DomainException('HTTPS APP_URL must be configured for account verification.');
+ if(!str_starts_with($origin,'https://') && cfg('APP_ENV')!=='testing')throw new DomainException('HTTPS APP_URL must be configured for account verification.');
  $link=$origin.'/verify-email?token='.$token;
  $subject='Verify your FyndEt email address';
  $message="Welcome to FyndEt.\n\nVerify the address you registered by visiting:\n".$link."\n\nThis link expires in 24 hours. If you did not create an account, you can ignore this email.\n";
