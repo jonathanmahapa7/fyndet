@@ -42,3 +42,8 @@ No source, capability or full investigation engine is called **Advanced** unless
 
 ## Future broad-source priorities
 Contracted public-data search, verified-domain enterprise exposure feeds, opt-in platform integrations, additional public-record providers, historical archives, deduplication and scheduled change notifications. Implement only through authorised APIs or disclosed public sources; avoid login/reset probing, credential dumping, anti-bot bypass or indiscriminate harvesting.
+
+## New federated query families
+Where the licensed indexed search provider is configured, FyndEt now checks exact-email references across general web results, indexed PDFs, professional context and community context, retaining source URLs and uncertainty. These are distinct queries, not distinct social-account APIs. The optional crt.sh adapter adds certificate transparency metadata for the email domain only.
+
+Run `php bin/check-discovery-providers.php` privately on cPanel to see configured source gates without exposing secrets. It does not verify paid licence validity.
