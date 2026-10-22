@@ -28,6 +28,7 @@ function stripeCall(string $endpoint,array $body=[]):array {
 function checkout():never {
  if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit('Method not allowed.');}
  verifyCsrf();$u=mustUser();
+ if(cfg('PAID_BILLING_ENABLED','0')!=='1')throw new DomainException('Paid subscriptions are not yet active.');
  // Subscription checkout is restricted until email ownership is verified.
  if(empty($u['email_verified_at']))throw new DomainException('Verify your email before subscribing.');
  $plan=(string)($_POST['plan']??'');$price=stripePrice($plan);
@@ -93,5 +94,20 @@ function webhook():never {
   error_log('FyndEt Stripe webhook failed: '.$e->getMessage());http_response_code(500);exit('Temporary failure');
  }
 }
+function billingPortal():never{
+ if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit;}
+ verifyCsrf();$u=mustUser();
+ if(cfg('PAID_BILLING_ENABLED','0')!=='1')throw new DomainException('Subscription management is not active.');
+ $q=db()->prepare('SELECT stripe_customer_id FROM users WHERE id=?');$q->execute([$u['id']]);$customer=$q->fetchColumn();
+ if(!is_string($customer)||!str_starts_with($customer,'cus_'))throw new DomainException('This account has no linked paid subscription.');
+ $app=rtrim(cfg('APP_URL'),' /');
+ if(!str_starts_with($app,'https://'))throw new DomainException('Secure production URL is not configured.');
+ $session=stripeCall('billing_portal/sessions',['customer'=>$customer,'return_url'=>$app.'/app/billing']);
+ $destination=(string)($session['url']??'');
+ if(!str_starts_with($destination,'https://billing.stripe.com/'))throw new RuntimeException('Payment provider returned an invalid portal link.');
+ header('Location: '.$destination,true,303);exit;
+}
 if($path==='/billing/webhook')webhook();
 if($path==='/billing/checkout')checkout();
+
+if($path==='/billing/portal')billingPortal();
