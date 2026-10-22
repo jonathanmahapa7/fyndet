@@ -61,6 +61,29 @@ check($status===200&&str_contains($csv,'Public DNS'),'Pro entitlement unlocks CS
 [$status,$pdf]=request('/app/reports/export?format=pdf&id='.$id);
 check($status===200&&str_starts_with($pdf,'%PDF-'),'Pro entitlement unlocks actual PDF report');
 
+[$status,$body]=request('/robots.txt');
+check($status===200&&str_contains($body,'Disallow: /'),'Test deployments are not crawlable');
+[$status,$body]=request('/llms.txt');
+check($status===200&&str_contains($body,'FyndEt'),'AI discovery guide renders');
+[$status,$body]=request('/app/api-keys');check($status===200&&str_contains($body,'Create a token'),'Pro API key screen renders');
+$csrf=formToken($body);
+[$status,$body,$headers]=request('/app/api-keys/create','POST',['_csrf'=>$csrf,'label'=>'QA secure API client']);
+check($status===303,'Owner may generate a scoped API key');
+[$status,$body]=request('/app/api-keys');
+check(preg_match('/fyd_[a-f0-9]{64}/',$body,$km)===1,'API token shown only at creation');
+$apiKey=$km[0];
+$h=curl_init('http://127.0.0.1:8099/api/v1/investigations');
+curl_setopt_array($h,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>json_encode(['email'=>'someone@example.com','purpose'=>'Attempt to search an unrelated email address']),CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$apiKey,'Content-Type: application/json']]);
+$body=curl_exec($h);$status=(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE);curl_close($h);
+check($status===422,'API blocks third-party email investigation');
+[$status,$body]=request('/app/privacy');
+check($status===200&&str_contains($body,'Your data.'),'Account privacy page renders');
+$csrf=formToken($body);
+[$status,$body,$headers]=request('/app/privacy/request','POST',['_csrf'=>$csrf,'type'=>'access','details'=>'Please provide access to the information held for my account.']);
+check($status===303,'Privacy request is persisted');
+[$status,$body]=request('/app/team');
+check($status===200&&str_contains($body,'Create a business workspace'),'Team entitlement page renders');
+
 [$status,$body]=request('/app');$csrf=formToken($body);
 [$status]=request('/logout','POST',['_csrf'=>$csrf]);check($status===303,'Session logout succeeds');
 [$status,$body]=request('/forgot-password');$csrf=formToken($body);
