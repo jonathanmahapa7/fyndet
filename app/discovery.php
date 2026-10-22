@@ -43,6 +43,7 @@ function fyndetDnsIntelligence(string $email):array {
 }
 function fyndetPublicWebEvidence(string $email,array $env):array {
  if(($env['BRAVE_SEARCH_ENABLED']??'0')!=='1')return fyndetDiscoveryResult('not_checked','Public web search adapter disabled pending approved API access');
+ if(($env['BRAVE_SEARCH_STORAGE_LICENSE_CONFIRMED']??'0')!=='1')return fyndetDiscoveryResult('not_checked','Search-result evidence storage rights not confirmed for this subscription');
  $key=(string)($env['BRAVE_SEARCH_API_KEY']??'');
  if($key==='')return fyndetDiscoveryResult('source_unavailable','Brave Search API credential not configured');
  if(!function_exists('curl_init'))return fyndetDiscoveryResult('source_unavailable','PHP cURL extension unavailable');
