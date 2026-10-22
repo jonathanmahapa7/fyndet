@@ -109,7 +109,21 @@ try {
    else{echo '<section class="panel report-panel"><div class="report-title"><div><p class="eyebrow">INVESTIGATION / '.esc(substr($id,0,8)).'</p><h2>'.esc($report['target_email']).'</h2></div><span class="status">'.esc(strtoupper($report['status'])).'</span></div>';
    if($report['result_json']){$result=json_decode($report['result_json'],true)?:[];echo '<p class="muted">Collected at '.esc($result['retrieved_at']??'').'. DNS records indicate infrastructure configuration, not the existence of online accounts.</p><div class="result-grid">';
    foreach(($result['records']??[]) as $type=>$values){echo '<article class="result-card"><p class="eyebrow">'.esc($type).'</p>';if($values){foreach($values as $v)echo '<p class="mono">'.esc((string)$v).'</p>';}else echo '<p class="muted">No record observed in this lookup.</p>';echo '</article>';}
-   echo '</div>';if(isset($result['breaches'])){echo '<h3>Verified breach notification metadata</h3><p class="muted">Results are sourced from the configured licensed provider. No passwords or leaked data are displayed.</p>';foreach($result['breaches'] as $b)echo '<p>'.esc($b).'</p>';}else echo '<p class="muted">Breach checks were not performed: provider not configured or not authorised.</p>';}
+   echo '</div>';
+   foreach(['public_references'=>'Public footprint references','breach_exposure'=>'Breach exposure metadata'] as $key=>$heading){
+     $data=$result[$key]??['state'=>'not_checked','reason'=>'Not enabled in this release','items'=>[]];
+     echo '<div class="evidence-section"><div class="report-title"><h3>'.esc($heading).'</h3><span class="status">'.esc(strtoupper((string)($data['state']??'unknown'))).'</span></div><p class="muted">'.esc((string)($data['reason']??'')).'</p>';
+     foreach(($data['items']??[]) as $evidence){
+       echo '<article class="evidence-item"><span class="eyebrow">'.esc((string)($evidence['type']??'EVIDENCE')).'</span>';
+       echo '<h4>'.esc((string)($evidence['repository']??$evidence['name']??'Source observation')).'</h4>';
+       echo '<p>'.esc((string)($evidence['summary']??$evidence['breach_date']??'')).'</p>';
+       if(!empty($evidence['data_classes']))echo '<p class="muted">Data categories: '.esc(implode(', ',$evidence['data_classes'])).'</p>';
+       if(!empty($evidence['source_url'])&&str_starts_with($evidence['source_url'],'https://github.com/'))echo '<a class="under-link" href="'.esc($evidence['source_url']).'" target="_blank" rel="noopener noreferrer">Inspect public source ↗</a>';
+       echo '<p class="muted">'.esc((string)($evidence['caution']??'')).'</p></article>';
+     }
+     if(empty($data['items']))echo '<p class="muted">No findings shown. Source absence is not proof that an account or breach does not exist.</p>';
+     echo '</div>';
+   }}
    else echo '<p class="muted">This report has not completed. Refresh after the scheduled worker runs. Failed reports may require administrator review.</p>';
    if($report['error_message'])echo '<p role="alert">'.esc($report['error_message']).'</p>';
    echo '</section>';}
