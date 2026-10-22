@@ -1,0 +1,64 @@
+name: FyndEt integration checks
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'bin/**'
+      - 'database/**'
+      - 'public/**'
+      - 'tests/**'
+      - '.github/workflows/integration.yml'
+  workflow_dispatch:
+jobs:
+  app-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: fyndet_test
+          MYSQL_ROOT_PASSWORD: testpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -ptestpass"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, mbstring, curl
+          coverage: none
+      - name: Create nonproduction test configuration
+        run: |
+          cp .env.example .env
+          cat >> .env <<'CONFIG'
+          APP_ENV=testing
+          APP_URL=http://127.0.0.1:8099
+          DB_HOST=127.0.0.1
+          DB_PORT=3306
+          DB_NAME=fyndet_test
+          DB_USER=root
+          DB_PASS=testpass
+          MAIL_FROM=test@fyndet.test
+          CONFIG
+          mkdir -p var
+          chmod 700 var
+      - name: Apply all migrations
+        run: php tests/install-test-db.php
+      - name: Start local PHP server
+        run: |
+          php -S 127.0.0.1:8099 -t public public/index.php >/tmp/fyndet-integration-server.log 2>&1 &
+          sleep 3
+          curl --fail http://127.0.0.1:8099/ >/dev/null
+      - name: Exercise registration, verification, investigation, reports and recovery
+        run: php tests/integration.php
+      - name: Print server diagnostics on failure
+        if: failure()
+        run: |
+          tail -n 80 /tmp/fyndet-integration-server.log || true
