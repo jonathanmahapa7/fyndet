@@ -11,6 +11,7 @@ function apiAuth():array {
  $hash=hash('sha256',$m[1]);
  $q=db()->prepare('SELECT u.id,u.email,u.plan,u.email_verified_at,t.id AS token_id FROM api_tokens t JOIN users u ON u.id=t.user_id WHERE t.token_hash=? AND t.revoked_at IS NULL');
  $q->execute([$hash]);$u=$q->fetch();
+ $u['plan']=$u?effectivePlan((int)$u['id'],(string)$u['plan']):'free';
  if(!$u||empty($u['email_verified_at'])||!in_array($u['plan'],['pro','business'],true))apiReply(403,['error'=>'API access requires a verified Pro or Business account']);
  return $u;
 }
@@ -48,8 +49,8 @@ if($path==='/api/v1/investigations'&&$_SERVER['REQUEST_METHOD']==='POST'){
  $email=strtolower(trim((string)($input['email']??'')));$purpose=trim((string)($input['purpose']??''));
  if(!filter_var($email,FILTER_VALIDATE_EMAIL)||!hash_equals($u['email'],$email)||mb_strlen($purpose)<10||mb_strlen($purpose)>400)apiReply(422,['error'=>'Only verified registered email self-check with valid purpose is allowed']);
  $pdo=db();$pdo->beginTransaction();
- $q=$pdo->prepare('SELECT id,plan FROM users WHERE id=? FOR UPDATE');$q->execute([$u['id']]);$actual=$q->fetch();
- if(!in_array($actual['plan'],['pro','business'],true)||used((int)$u['id'])>=credits($actual['plan'])){$pdo->rollBack();apiReply(429,['error'=>'Plan credits exhausted or API unavailable']);}
+ $lockedPlan=lockEntitlement((int)$u['id']);
+ if(!in_array($lockedPlan,['pro','business'],true)||used((int)$u['id'])>=credits($lockedPlan)){$pdo->rollBack();apiReply(429,['error'=>'Plan credits exhausted or API unavailable']);}
  $id=bin2hex(random_bytes(16));
  $q=$pdo->prepare('INSERT INTO investigations(id,user_id,target_email,purpose) VALUES(?,?,?,?)');$q->execute([$id,$u['id'],$email,$purpose]);
  $q=$pdo->prepare('INSERT INTO usage_ledger(user_id,investigation_id,period) VALUES(?,?,?)');$q->execute([$u['id'],$id,gmdate('Y-m')]);
