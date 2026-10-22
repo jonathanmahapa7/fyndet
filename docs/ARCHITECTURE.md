@@ -76,3 +76,7 @@ Use OWASP ASVS as verification framework, least-privilege IAM, parameterised que
 
 ## Environment
 Deployment target, billing gateway, domain, provider contracts and privacy counsel review are **unconfirmed**. They are prerequisites to a production rollout.
+ 
+
+## Mandatory cPanel-compatible production architecture (2026-10-22)
+The general TypeScript/Next.js/Redis architecture above is exploratory and **not** the default production stack. cPanel operation is a hard requirement. Prefer PHP 8.2+ with PDO and MySQL/MariaDB behind Apache, with progressively enhanced accessible HTML/CSS/JS bundled into deployable static assets. Database-backed cron-triggered workers are the required baseline. Deploy with public web root separation, production .htaccess rules, strict file permissions, per-account configuration and non-root CLI tooling. Do not rely on a permanently running worker, Docker, Redis, or a Node app runtime without verifying they are explicitly supported by the target cPanel subscription. Build, migrate, back up, rollback and smoke-test instructions must be furnished for cPanel. Maintain optional decoupled frontend technology only if its built output can be hosted reliably in this environment.
