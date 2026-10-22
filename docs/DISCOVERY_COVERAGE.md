@@ -47,3 +47,5 @@ Contracted public-data search, verified-domain enterprise exposure feeds, opt-in
 Where the licensed indexed search provider is configured, FyndEt now checks exact-email references across general web results, indexed PDFs, professional context and community context, retaining source URLs and uncertainty. These are distinct queries, not distinct social-account APIs. The optional crt.sh adapter adds certificate transparency metadata for the email domain only.
 
 Run `php bin/check-discovery-providers.php` privately on cPanel to see configured source gates without exposing secrets. It does not verify paid licence validity.
+
+**Storage licensing:** Brave Search notes that storing search API results requires explicit storage rights under an eligible plan. Because FyndEt persists evidence for reports, indexed web adapters require BRAVE_SEARCH_STORAGE_LICENSE_CONFIRMED=1 as well as access credentials. Leave disabled until the contract explicitly authorises retention. See https://brave.com/search/api/ .
