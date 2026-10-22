@@ -1,0 +1,16 @@
+{
+  "name": "fyndet/email-intelligence",
+  "description": "FyndEt cPanel-compatible evidence-led email intelligence",
+  "type": "project",
+  "require": {
+    "php": "^8.2",
+    "ext-pdo": "*",
+    "ext-json": "*",
+    "ext-mbstring": "*",
+    "dompdf/dompdf": "^3.1"
+  },
+  "config": {
+    "sort-packages": true,
+    "optimize-autoloader": true
+  }
+}
