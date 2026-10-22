@@ -1,7 +1,10 @@
 <?php
 declare(strict_types=1);
 date_default_timezone_set('UTC');
-$root=dirname(__DIR__);
+// cPanel can run a split document root: public files in public_html, app files kept private.
+$requestedRoot=(string)(getenv('FYNDET_APP_ROOT')?:'');
+$root=$requestedRoot!==''&&is_dir($requestedRoot)&&is_file(rtrim($requestedRoot,'/').'/app/identity.php')
+  ? (string)realpath($requestedRoot) : dirname(__DIR__);
 function envLoad(string $path): array {
   if(!is_file($path)) return [];
   $out=[];
