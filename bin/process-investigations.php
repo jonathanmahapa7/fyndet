@@ -13,6 +13,7 @@ foreach(file($root.'/.env',FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES)?:[] as $
 }
 require_once $root.'/app/providers.php';
 require_once $root.'/app/discovery.php';
+require_once $root.'/app/certificates.php';
 foreach(['DB_HOST','DB_NAME','DB_USER'] as $key)if(empty($env[$key])){fwrite(STDERR,"Missing configuration: $key\n");exit(1);}
 $dsn='mysql:host='.$env['DB_HOST'].';port='.($env['DB_PORT']??3306).';dbname='.$env['DB_NAME'].';charset=utf8mb4';
 $db=new PDO($dsn,$env['DB_USER'],$env['DB_PASS']??'',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
@@ -45,6 +46,7 @@ for($i=0;$i<10;$i++){
     $result['public_references']=publicCommitEvidence(strtolower($job['target_email']),$env);
     $result['breach_exposure']=licensedBreachEvidence(strtolower($job['target_email']),$env);
     $result['expanded_discovery']=fyndetRunExtendedDiscovery(strtolower($job['target_email']),$env);
+    $result['expanded_discovery']['sources']['certificate_transparency']=fyndetCertificateEvidence(strtolower($job['target_email']),$env);
     $result['evidence_summary']=fyndetCorrelate(['public_references'=>$result['public_references'],'breach_exposure'=>$result['breach_exposure']]+$result['expanded_discovery']['sources']);
   } else {
     $result['public_references']=['state'=>'not_checked','reason'=>'Email control not verified','items'=>[]];
