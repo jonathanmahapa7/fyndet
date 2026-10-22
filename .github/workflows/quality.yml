@@ -16,7 +16,7 @@ jobs:
           coverage: none
       - name: Lint all PHP
         run: |
-          find public bin -name '*.php' -type f -print0 | xargs -0 -n1 php -l
+          find public bin app -name '*.php' -type f -print0 | xargs -0 -n1 php -l
       - name: Check essential deployment files
         run: |
           test -f public/.htaccess
@@ -25,6 +25,14 @@ jobs:
           test -f database/schema.sql
           test -f .env.example
           test -f docs/CPANEL_DEPLOYMENT.md
+          test -f database/002_identity.sql
+          test -f database/003_password_reset.sql
+          test -f app/identity.php
+          test -f app/billing.php
+          test -f app/report_export.php
+          test -f app/providers.php
+      - name: Validate Composer project
+        run: composer validate --no-check-publish
       - name: Ensure no committed environment secrets
         run: |
           test ! -e .env
