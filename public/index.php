@@ -85,7 +85,7 @@ try {
  if($path==='/contact'){
   pageTop('Contact FyndEt');
   $sales=cfg('SALES_EMAIL','');
-  echo '<main class="section container"><div class="section-heading"><p class="eyebrow">FYNDET / CONTACT</p><h1 class="interior-title">Let's talk <em>intelligence.</em></h1><p>For enterprise requirements, licensing questions, commercial enquiries or responsible-use concerns, contact the FyndEt team.</p></div><section class="feature-card" style="max-width:720px"><p class="eyebrow">CUSTOM & ENTERPRISE</p><h3>Build the right solution.</h3><p>Contact details will be enabled once the FyndEt operating domain and support mailbox are confirmed.</p>';
+  echo '<main class="section container"><div class="section-heading"><p class="eyebrow">FYNDET / CONTACT</p><h1 class="interior-title">Explore <em>intelligence.</em></h1><p>For enterprise requirements, licensing questions, commercial enquiries or responsible-use concerns, contact the FyndEt team.</p></div><section class="feature-card" style="max-width:720px"><p class="eyebrow">CUSTOM & ENTERPRISE</p><h3>Build the right solution.</h3><p>Contact details will be enabled once the FyndEt operating domain and support mailbox are confirmed.</p>';
   if(filter_var($sales,FILTER_VALIDATE_EMAIL))echo '<a class="button button-accent" href="mailto:'.esc($sales).'?subject=FyndEt%20Enterprise%20Enquiry">Email sales ↗</a>';
   else echo '<p class="muted">Sales contact is being configured ahead of public launch.</p>';
   echo '</section></main>';pageEnd();exit;
