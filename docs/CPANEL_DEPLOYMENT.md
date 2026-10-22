@@ -55,3 +55,10 @@ Only where Stripe can legally serve the operating business: configure `STRIPE_SE
 - Set `SALES_EMAIL` to an actual mailbox controlled by the operating business. The repository does not assume ownership of fyndet.com or any other domain.
 - Configure `FYNDET_APP_ROOT` for split-document-root installations and verify PHP receives the Apache environment variable.
 - The current developer tests run against PHP and MySQL on GitHub Actions; these do not replace a production cPanel smoke test, backup restore, legal review or accessibility review.
+
+
+## Daily maintenance cron
+Schedule `bin/maintenance-cpanel.php` once daily with the verified cPanel PHP binary. This performs expiring-token cleanup, plan-based report retention, audit cleanup and maintenance health recording. Run it under the cPanel user, not as root. Do not enable deletion until you have tested database backups and applicable retention legal requirements.
+
+## Platform administration
+Admin access requires explicit `users.is_platform_admin=1` granted by a trusted deployment administrator after verifying account ownership. Do not provide a public 'become admin' control. Admin URL: `/admin`. Privacy requests require reviewed status updates, not automatic deletion of evidence needed for legal obligations.
