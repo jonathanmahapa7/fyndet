@@ -32,7 +32,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: pdo_mysql, mbstring, curl
+          extensions: pdo_mysql, mbstring, curl, dom, gd, zip
           coverage: none
       - name: Create nonproduction test configuration
         run: |
@@ -46,9 +46,13 @@ jobs:
           DB_USER=root
           DB_PASS=testpass
           MAIL_FROM=test@fyndet.test
+          STRIPE_WEBHOOK_SECRET=whsec_test_secret
+          STRIPE_PRICE_PRO=price_integration_pro
           CONFIG
           mkdir -p var
           chmod 700 var
+      - name: Install PDF rendering dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction
       - name: Apply all migrations
         run: php tests/install-test-db.php
       - name: Start local PHP server
