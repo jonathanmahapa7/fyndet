@@ -32,6 +32,8 @@ jobs:
           test -f app/report_export.php
           test -f app/providers.php
           test -f app/workspace.php
+          test -f app/mfa.php
+          test -f database/006_mfa.sql
           test -f database/004_organisations_privacy.sql
       - name: Validate Composer project
         run: composer validate --no-check-publish
