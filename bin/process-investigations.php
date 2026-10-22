@@ -23,7 +23,7 @@ $lock=fopen($lockPath,'c');if(!$lock||!flock($lock,LOCK_EX|LOCK_NB)){echo "Anoth
 // Bounded work per invocation: avoid long-lived PHP cron processes on shared cPanel.
 for($i=0;$i<2;$i++){
  $db->beginTransaction();
- $s=$db->query("SELECT id,user_id,target_email FROM investigations WHERE status='queued' ORDER BY created_at ASC LIMIT 1 FOR UPDATE");
+ $s=$db->query("SELECT id,user_id,target_email,purpose FROM investigations WHERE status='queued' ORDER BY created_at ASC LIMIT 1 FOR UPDATE");
  $job=$s->fetch();
  if(!$job){$db->commit();break;}
  $q=$db->prepare("UPDATE investigations SET status='running' WHERE id=?");$q->execute([$job['id']]);$db->commit();
@@ -59,6 +59,34 @@ for($i=0;$i<2;$i++){
   }
   $q=$db->prepare("UPDATE investigations SET status='complete',result_json=?,finished_at=NOW() WHERE id=?");
   $q->execute([json_encode($result,JSON_UNESCAPED_SLASHES|JSON_INVALID_UTF8_SUBSTITUTE),$job['id']]);
+  if(str_starts_with((string)$job['purpose'],'Scheduled authorised monitoring')){
+    $monitor=$db->prepare('SELECT last_digest FROM monitoring_profiles WHERE user_id=?');
+    $monitor->execute([$job['user_id']]);$profile=$monitor->fetch();
+    if($profile){
+      $fingerprint=['dns'=>$result['records']??[],'sections'=>[]];
+      foreach(['public_references','breach_exposure'] as $key){
+        $section=$result[$key]??[];
+        if(!in_array($section['state']??'', ['observed','not_found'],true))continue;
+        foreach(($section['items']??[]) as $item){
+          $fingerprint['sections'][$key][]=[$item['type']??'', $item['source_url']??$item['name']??$item['repository']??''];
+        }
+      }
+      foreach(($result['expanded_discovery']['sources']??[]) as $key=>$section){
+        if(!in_array($section['state']??'', ['observed','not_found'],true))continue;
+        foreach(($section['items']??[]) as $item){
+          $fingerprint['sections'][$key][]=[$item['type']??'', $item['source_url']??$item['name']??$item['value']??''];
+        }
+      }
+      foreach($fingerprint['sections'] as &$values)sort($values);unset($values);
+      ksort($fingerprint['sections']);
+      $digest=hash('sha256',json_encode($fingerprint,JSON_UNESCAPED_SLASHES|JSON_INVALID_UTF8_SUBSTITUTE));
+      $kind=empty($profile['last_digest'])?'first_scan':($profile['last_digest']===$digest?'unchanged':'changed');
+      $q=$db->prepare('INSERT INTO monitoring_events(user_id,investigation_id,event_type,observed_digest) VALUES(?,?,?,?)');
+      $q->execute([$job['user_id'],$job['id'],$kind,$digest]);
+      $q=$db->prepare("UPDATE monitoring_profiles SET last_digest=?,last_changed_at=IF(?='changed',UTC_TIMESTAMP(),last_changed_at) WHERE user_id=?");
+      $q->execute([$digest,$kind,$job['user_id']]);
+    }
+  }
   echo "Completed ".$job['id']."\n";
  }catch(Throwable $e){
   error_log('FyndEt worker '.$job['id'].': '.$e->getMessage());
