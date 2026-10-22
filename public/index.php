@@ -87,11 +87,19 @@ function pageTop(string $title,bool $app=false):void {
  echo '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#08151e"><meta name="description" content="'.esc($description).'"><meta name="robots" content="'.($indexable&&$trustedOrigin?'index,follow,max-image-preview:large':'noindex,nofollow').'"><title>'.esc($pageTitle).' | FyndEt</title>';
  if($trustedOrigin&&$indexable){
   $canonical=$trustedOrigin.($path==='/'?'/':$path);
-  echo '<link rel="canonical" href="'.esc($canonical).'"><meta property="og:type" content="website"><meta property="og:site_name" content="FyndEt"><meta property="og:title" content="'.esc($pageTitle).'"><meta property="og:description" content="'.esc($description).'"><meta property="og:url" content="'.esc($canonical).'"><meta name="twitter:card" content="summary_large_image">';
+  echo '<link rel="canonical" href="'.esc($canonical).'"><meta property="og:type" content="website"><meta property="og:site_name" content="FyndEt"><meta property="og:title" content="'.esc($pageTitle).'"><meta property="og:description" content="'.esc($description).'"><meta property="og:url" content="'.esc($canonical).'"><meta name="twitter:card" content="summary">';
   $schema=['@context'=>'https://schema.org','@type'=>'WebSite','name'=>'FyndEt','url'=>$trustedOrigin.'/','description'=>'Evidence-led email and digital-footprint investigations with verified self-check restrictions.'];
-  if($path==='/')echo '<script type="application/ld+json" nonce="'.esc($GLOBALS['csp_nonce']??'').'">'.json_encode($schema,JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP).'</script>';
+  if($path==='/'){
+   echo '<script type="application/ld+json" nonce="'.esc($GLOBALS['csp_nonce']??'').'">'.json_encode($schema,JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP).'</script>';
+   $faq=['@context'=>'https://schema.org','@type'=>'FAQPage','mainEntity'=>[
+    ['@type'=>'Question','name'=>'Can FyndEt discover every online account?','acceptedAnswer'=>['@type'=>'Answer','text'=>'No. Coverage depends on authorised source availability. FyndEt presents source-backed observations and states uncertainty.']],
+    ['@type'=>'Question','name'=>'Can I investigate any email address?','acceptedAnswer'=>['@type'=>'Answer','text'=>'Current investigations are restricted to the user’s verified registered email. Third-party investigations require additional authority review.']],
+    ['@type'=>'Question','name'=>'Is breach data available?','acceptedAnswer'=>['@type'=>'Answer','text'=>'Breach metadata can only be checked where a licensed approved provider is configured and email ownership is verified. Passwords and raw leaked records are not disclosed.']]
+   ]];
+   echo '<script type="application/ld+json" nonce="'.esc($GLOBALS['csp_nonce']??'').'">'.json_encode($faq,JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP).'</script>';
+  }
  }
- echo '<link rel="stylesheet" href="/assets/style.css"><script defer src="/assets/app.js"></script></head><body>';
+ echo '<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/style.css"><script defer src="/assets/app.js"></script></head><body>';
 
  echo '<div class="site-shell"><header class="site-header"><div class="container header-in"><a class="brand" href="/" aria-label="FyndEt home"><span class="brand-mark"><span></span><span></span><span></span><span></span></span><span>fynd<span class="brand-accent">et</span><sup>®</sup></span></a><nav class="desktop-nav" aria-label="Primary"><a href="/#platform">Platform</a><a href="/how-it-works">How it works</a><a href="/pricing">Pricing</a><a href="/#faq">FAQs</a></nav><div class="nav-actions">';
  if($u) echo '<a class="text-link" href="/app">Dashboard</a><form method="post" action="/logout"><input type="hidden" name="_csrf" value="'.csrf().'"><button class="button button-small button-outline" type="submit">Sign out <span>↗</span></button></form>';
