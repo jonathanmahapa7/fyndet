@@ -31,6 +31,8 @@ All quotas are configurable; see [pricing specification](docs/PRICING.md). Provi
 - [Pricing and entitlements](docs/PRICING.md)
 - [Privacy, safety and acceptable use](docs/PRIVACY_AND_SAFETY.md)
 - [Delivery and verification plan](docs/DELIVERY_PLAN.md)
+- [SEO and AI-search readiness](docs/SEO_AEO.md)
+- [Current release status and launch blockers](docs/RELEASE_STATUS.md)
 
 ## Application source
 - Public website, plans, how-it-works, login, registration, and workspace: [public/index.php](public/index.php)
