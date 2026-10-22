@@ -52,13 +52,18 @@ function publicCommitEvidence(string $email,array $env):array {
  }
  return ['state'=>$items?'observed':'not_found','reason'=>$items?'Exact-match public commit metadata':'No matching public commit result in this limited API query','items'=>$items];
 }
+/**
+ * Metadata-only source check. HIBP subscriptions cannot be self-provisioned
+ * from repository code; enabling is conditional on valid credentials and terms.
+ * All breach results are explicitly attributed.
+ */
 function licensedBreachEvidence(string $email,array $env):array {
  if(($env['HIBP_ENABLED']??'0')!=='1')return ['state'=>'not_checked','reason'=>'Licensed breach provider disabled','items'=>[]];
  $token=$env['HIBP_API_KEY']??'';
- if($token==='')return ['state'=>'source_unavailable','reason'=>'Provider licence credentials unavailable','items'=>[]];
+ if(!preg_match('/^[a-f0-9]{32}$/i',$token))return ['state'=>'source_unavailable','reason'=>'Licensed provider API key missing or invalid; not checked','items'=>[]];
  $res=safeGet('https://haveibeenpwned.com/api/v3/breachedaccount/'.rawurlencode($email).'?truncateResponse=false',['hibp-api-key: '.$token,'Accept: application/json']);
  if($res['status']===404)return ['state'=>'not_found','reason'=>'No breach returned by the configured provider for this verified self-check','items'=>[]];
- if($res['status']!==200||!is_array($res['data']))return ['state'=>'source_unavailable','reason'=>'Provider returned no usable authorised response','items'=>[]];
+ if($res['status']!==200||!is_array($res['data']))return ['state'=>'source_unavailable','reason'=>'Provider unavailable, unauthorised, plan-restricted or rate limited (HTTP '.$res['status'].'); do not interpret as no breach','items'=>[]];
  $items=[];
  foreach(array_slice($res['data'],0,30) as $breach){
   if(!is_array($breach))continue;
