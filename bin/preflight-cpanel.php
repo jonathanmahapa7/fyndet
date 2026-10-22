@@ -22,6 +22,7 @@ result(PHP_VERSION_ID>=80200,'PHP 8.2+');
 foreach(['pdo_mysql','mbstring','openssl','json','curl'] as $extension)result(extension_loaded($extension),"Extension $extension");
 result(function_exists('dns_get_record'),'Public DNS resolution function available');
 result(is_file($root.'/.env'),'Private environment configuration exists');
+result(preg_match('/^[a-f0-9]{64}$/i',$env['APP_KEY']??'')===1,'64-character random application encryption key configured');
 result(is_dir($root.'/public')&&is_file($root.'/public/index.php'),'Public application entry point exists');
 result(is_file($root.'/public/.htaccess'),'Apache rewrite and security policy exists');
 result(is_file($root.'/vendor/autoload.php'),'Composer production dependencies installed',false);
