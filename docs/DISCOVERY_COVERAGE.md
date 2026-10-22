@@ -49,3 +49,10 @@ Where the licensed indexed search provider is configured, FyndEt now checks exac
 Run `php bin/check-discovery-providers.php` privately on cPanel to see configured source gates without exposing secrets. It does not verify paid licence validity.
 
 **Storage licensing:** Brave Search notes that storing search API results requires explicit storage rights under an eligible plan. Because FyndEt persists evidence for reports, indexed web adapters require BRAVE_SEARCH_STORAGE_LICENSE_CONFIRMED=1 as well as access credentials. Leave disabled until the contract explicitly authorises retention. See https://brave.com/search/api/ .
+
+## Zero-budget operating baseline
+The default paid-service product must not depend on commercial OSINT feeds or licensed search APIs. Implementable no-cost primary evidence includes local DNS mail-security policy analysis, publicly published infrastructure signals where automated commercial access is permitted, account-owner supplied evidence, and internal change detection. SPF and DMARC posture interpretation is implemented without a remote subscription.
+
+Important: 'free API' is not synonymous with 'commercially usable'. RIPEstat's public data API, for example, excludes commercial derivative products without written permission. Do not incorporate it as a no-cost commercial dependency. Certificate transparency search providers may likewise have personal-use-only free tiers. The certificate-search adapter remains opt-in until its intended usage is confirmed. No paid provider is part of the required operation.
+
+**Honesty:** completely free comprehensive platform-by-platform account discovery and universal breach exposure are not available merely by querying public infrastructure. Do not advertise coverage the product does not actually possess.
