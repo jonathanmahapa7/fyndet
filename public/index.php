@@ -11,7 +11,7 @@ function envLoad(string $path): array {
   }return $out;
 }
 $env=envLoad($root.'/.env');
-function cfg(string $key,string $default=''):string {global $env;return (string)($env[$key]??getenv($key)?:$default);}
+function cfg(string $key,string $default=''):string {global $env;return (string)($env[$key] ?? (getenv($key) !== false ? getenv($key) : $default));}
 if(PHP_SAPI!=='cli'){
  $secure=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off') || ($_SERVER['HTTP_X_FORWARDED_PROTO']??'')==='https';
  session_name('fyndet_session');
@@ -100,5 +100,5 @@ try {
   $q=db()->prepare('SELECT id,target_email,status,created_at FROM investigations WHERE user_id=? ORDER BY created_at DESC LIMIT 20');$q->execute([$u['id']]);$rows=$q->fetchAll();echo '<section class="panel history"><div class="panel-header"><div><p class="eyebrow">YOUR ACTIVITY</p><h2>Recent investigations</h2></div><span>'.count($rows).' shown</span></div><div class="table-scroll"><table><thead><tr><th>SUBJECT</th><th>CREATED</th><th>STATUS</th><th></th></tr></thead><tbody>';foreach($rows as $r)echo '<tr><td>'.esc($r['target_email']).'</td><td>'.esc($r['created_at']).' UTC</td><td><span class="status">'.esc($r['status']).'</span></td><td><a href="/app/report?id='.esc($r['id']).'">View ↗</a></td></tr>';if(!$rows)echo '<tr><td colspan="4" class="empty-row">No investigations yet. Your findings will appear here.</td></tr>';echo '</tbody></table></div></section></main>';pageEnd();exit;
  }
  http_response_code(404);pageTop('Not found');echo '<main class="section container"><p class="eyebrow">404 / NOT FOUND</p><h1 class="interior-title">Nothing here.<br><em>Keep exploring.</em></h1><a class="button button-accent" href="/">Return home ↗</a></main>';pageEnd();
-}catch(DomainException $e){http_response_code(422);pageTop('Please review');echo '<main class="section container error-page"><p class="eyebrow">ACTION NOT COMPLETED</p><h1 class="interior-title">Something needs <em>attention.</em></h1><p>'.esc($e->getMessage()).'</p><a class="button button-outline" href="javascript:history.back()">Try again ←</a><a class="button button-accent" href="/">Home ↗</a></main>';pageEnd();}
+}catch(DomainException $e){http_response_code(422);pageTop('Please review');echo '<main class="section container error-page"><p class="eyebrow">ACTION NOT COMPLETED</p><h1 class="interior-title">Something needs <em>attention.</em></h1><p>'.esc($e->getMessage()).'</p><a class="button button-outline" href="/login">Try again ←</a><a class="button button-accent" href="/">Home ↗</a></main>';pageEnd();}
 catch(Throwable $e){error_log('FyndEt: '.$e->getMessage());http_response_code(503);echo '<!doctype html><title>Service temporarily unavailable — FyndEt</title><main style="max-width:650px;margin:12vh auto;font:18px system-ui;padding:25px"><h1>Service temporarily unavailable</h1><p>FyndEt could not complete this request. If this is a new installation, configure the database and run the migration. Please try again later.</p></main>';}
