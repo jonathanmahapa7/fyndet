@@ -152,7 +152,7 @@ try {
  }
  if($path==='/logout'&&$_SERVER['REQUEST_METHOD']==='POST'){verifyCsrf();$_SESSION=[];session_regenerate_id(true);go('');}
  if($path==='/register'&&$_SERVER['REQUEST_METHOD']==='POST'){
-  verifyCsrf();$email=strtolower(trim((string)($_POST['email']??'')));$name=trim((string)($_POST['name']??''));$pass=(string)($_POST['password']??'');
+  verifyCsrf();$signupBucket='signup|'.($_SERVER['REMOTE_ADDR']??'unknown');if(!authAllowed($signupBucket,5,3600))throw new DomainException('Too many registrations from this connection. Please try again later.');authFailed($signupBucket);$email=strtolower(trim((string)($_POST['email']??'')));$name=trim((string)($_POST['name']??''));$pass=(string)($_POST['password']??'');
   if(!filter_var($email,FILTER_VALIDATE_EMAIL)||mb_strlen($name)>120||mb_strlen($name)<2||strlen($pass)<12)throw new DomainException('Use a valid email address, a name, and a password of at least 12 characters.');
   $q=db()->prepare('INSERT INTO users(email,name,password_hash) VALUES (?,?,?)');
   try{$q->execute([$email,$name,password_hash($pass,PASSWORD_DEFAULT)]);}catch(PDOException $e){throw new DomainException('This email may already be registered. Try signing in.');}
