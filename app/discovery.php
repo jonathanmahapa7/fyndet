@@ -39,7 +39,20 @@ function fyndetDnsIntelligence(string $email):array {
   if($entry['record_type']==='TXT'&&str_starts_with(strtolower($entry['value']),'v=spf1'))$spf=true;
   if($entry['record_type']==='DMARC'&&str_starts_with(strtolower($entry['value']),'v=dmarc1'))$dmarc=true;
  }
- return ['state'=>$findings?'observed':'not_found','reason'=>'Domain DNS configuration checked; never interpreted as proof an account exists','items'=>$findings,'posture'=>['mx_published'=>$mx,'spf_published'=>$spf,'dmarc_published'=>$dmarc],'checked_at'=>gmdate('c')];
+ $spfPolicy='not_published';$dmarcPolicy='not_published';$observations=[];
+ foreach($findings as $finding){
+  $v=strtolower((string)$finding['value']);
+  if($finding['record_type']==='TXT'&&str_starts_with($v,'v=spf1')){
+   $spfPolicy=str_contains($v,' -all')?'hard_fail':(str_contains($v,' ~all')?'soft_fail':(str_contains($v,' +all')?'allow_all':'unclassified'));
+   if($spfPolicy==='allow_all')$observations[]=['severity'=>'high','title'=>'SPF broadly authorises senders','explanation'=>'An SPF +all mechanism permits arbitrary senders at SPF policy level; verify the published policy.'];
+  }
+  if($finding['record_type']==='DMARC'&&str_starts_with($v,'v=dmarc1')){
+   $dmarcPolicy=preg_match('/(?:^|;)\s*p\s*=\s*(reject|quarantine|none)/',$v,$m)?$m[1]:'unspecified';
+   if($dmarcPolicy==='none')$observations[]=['severity'=>'advisory','title'=>'DMARC monitoring-only policy','explanation'=>'A p=none policy requests monitoring rather than an enforcement action.'];
+  }
+ }
+ if(!$dmarc)$observations[]=['severity'=>'advisory','title'=>'No published DMARC policy observed','explanation'=>'The DMARC TXT lookup did not return a published policy at the time of this check.'];
+ return ['state'=>$findings?'observed':'not_found','reason'=>'Domain DNS configuration checked; never interpreted as proof an account exists','items'=>$findings,'posture'=>['mx_published'=>$mx,'spf_published'=>$spf,'dmarc_published'=>$dmarc,'spf_policy'=>$spfPolicy,'dmarc_policy'=>$dmarcPolicy,'observations'=>$observations],'checked_at'=>gmdate('c')];
 }
 function fyndetPublicWebEvidence(string $email,array $env):array {
  if(($env['BRAVE_SEARCH_ENABLED']??'0')!=='1')return fyndetDiscoveryResult('not_checked','Public web search adapter disabled pending approved API access');
