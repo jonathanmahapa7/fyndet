@@ -11,6 +11,7 @@ foreach(file($root.'/.env',FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES)?:[] as $
  $line=trim($line);if($line===''||str_starts_with($line,'#')||!str_contains($line,'='))continue;
  [$k,$v]=explode('=',$line,2);$env[trim($k)]=trim($v," \t\n\r\0\x0B\"'");
 }
+require_once $root.'/app/providers.php';
 foreach(['DB_HOST','DB_NAME','DB_USER'] as $key)if(empty($env[$key])){fwrite(STDERR,"Missing configuration: $key\n");exit(1);}
 $dsn='mysql:host='.$env['DB_HOST'].';port='.($env['DB_PORT']??3306).';dbname='.$env['DB_NAME'].';charset=utf8mb4';
 $db=new PDO($dsn,$env['DB_USER'],$env['DB_PASS']??'',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
@@ -36,7 +37,16 @@ for($i=0;$i<10;$i++){
       if(count($rows)>=15)break;
     }$result['records'][$type]=$rows;
   }
-  $result['breach_source_status']='not_checked: requires authorised licensed provider and email ownership verification';
+  // Provider requests are allowed only for the registered email after verified ownership.
+  $verify=$db->prepare('SELECT email,email_verified_at FROM users WHERE id=?');$verify->execute([$job['user_id']]);$account=$verify->fetch();
+  $authorised=$account && !empty($account['email_verified_at']) && hash_equals(strtolower($account['email']),strtolower($job['target_email']));
+  if($authorised){
+    $result['public_references']=publicCommitEvidence(strtolower($job['target_email']),$env);
+    $result['breach_exposure']=licensedBreachEvidence(strtolower($job['target_email']),$env);
+  } else {
+    $result['public_references']=['state'=>'not_checked','reason'=>'Email control not verified','items'=>[]];
+    $result['breach_exposure']=['state'=>'not_checked','reason'=>'Email control not verified','items'=>[]];
+  }
   $q=$db->prepare("UPDATE investigations SET status='complete',result_json=?,finished_at=NOW() WHERE id=?");
   $q->execute([json_encode($result,JSON_UNESCAPED_SLASHES|JSON_INVALID_UTF8_SUBSTITUTE),$job['id']]);
   echo "Completed ".$job['id']."\n";
