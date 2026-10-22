@@ -77,6 +77,33 @@ try {
  require $root.'/app/identity.php';
  require $root.'/app/billing.php';
  require $root.'/app/report_export.php';
+ if($path==='/robots.txt'){
+  header('Content-Type: text/plain; charset=UTF-8');
+  $origin=rtrim(cfg('APP_URL',''),' /');
+  $configured=preg_match('~^https://[a-z0-9.-]+(?::443)?$~i',$origin)===1;
+  echo "User-agent: *\n";
+  if(!$configured || cfg('APP_ENV','production')!=='production')echo "Disallow: /\n";
+  else {
+   echo "Allow: /\n";
+   foreach(['/app','/billing','/login','/register','/forgot-password','/reset-password','/verify-email','/resend-verification','/investigate','/logout'] as $private)echo "Disallow: $private\n";
+   echo "Sitemap: $origin/sitemap.xml\n";
+  }
+  exit;
+ }
+ if($path==='/sitemap.xml'){
+  header('Content-Type: application/xml; charset=UTF-8');
+  $origin=rtrim(cfg('APP_URL',''),' /');
+  if(!preg_match('~^https://[a-z0-9.-]+(?::443)?$~i',$origin)||cfg('APP_ENV','production')!=='production'){http_response_code(503);exit('<?xml version="1.0"?><error>Production domain not configured</error>');}
+  echo '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+  foreach(['/','/pricing','/how-it-works','/contact','/legal'] as $route)echo '<url><loc>'.esc($origin.$route).'</loc></url>';
+  echo '</urlset>';exit;
+ }
+ if($path==='/llms.txt'){
+  header('Content-Type: text/plain; charset=UTF-8');
+  echo "# FyndEt\n\nFyndEt provides authorised, evidence-led email footprint self-checks and domain intelligence. Sources differ in availability and coverage; missing results do not prove an account does not exist. Paid plans are subject to activation and provider licensing.\n\n";
+  foreach(['/how-it-works'=>'How it works','/pricing'=>'Pricing','/legal'=>'Privacy and responsible use','/contact'=>'Contact'] as $route=>$label)echo "- $label: $route\n";
+  echo "\nPrivate investigation pages are not intended for search or AI indexing.\n";exit;
+ }
  if($path==='/logout'&&$_SERVER['REQUEST_METHOD']==='POST'){verifyCsrf();$_SESSION=[];session_regenerate_id(true);go('');}
  if($path==='/register'&&$_SERVER['REQUEST_METHOD']==='POST'){
   verifyCsrf();$email=strtolower(trim((string)($_POST['email']??'')));$name=trim((string)($_POST['name']??''));$pass=(string)($_POST['password']??'');
