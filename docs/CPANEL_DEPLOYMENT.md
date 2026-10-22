@@ -62,3 +62,7 @@ Schedule `bin/maintenance-cpanel.php` once daily with the verified cPanel PHP bi
 
 ## Platform administration
 Admin access requires explicit `users.is_platform_admin=1` granted by a trusted deployment administrator after verifying account ownership. Do not provide a public 'become admin' control. Admin URL: `/admin`. Privacy requests require reviewed status updates, not automatic deletion of evidence needed for legal obligations.
+
+
+## Multi-factor authentication
+Authenticators compatible with RFC 6238 can use the manually displayed setup secret. MFA secrets are AES-256-GCM encrypted using `APP_KEY`; configure this with 64 random hexadecimal characters before opening registrations. **Do not rotate APP_KEY without a planned MFA re-enrolment process.** Users must securely retain one-time recovery codes. SMS is not required. Platform administrators should enforce MFA as an organisational operational policy.
