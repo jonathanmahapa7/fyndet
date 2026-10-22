@@ -4,7 +4,7 @@
 
 FyndEt is a planned subscription-based email intelligence and digital-footprint research service. It combines permitted public-source discovery, domain analysis, authorised breach-exposure checks and evidence-backed reporting into an approachable, professional investigation workspace.
 
-> **Project status:** Product specifications and implementation instructions. No live investigation engine, paid subscription processing, or real-time provider integration is claimed to be operational.
+> **Project status (22 October 2026):** cPanel-oriented application source committed, including a premium responsive interface, PHP sign-in/registration, database models, self-check investigation creation, CLI scheduled DNS analysis and private report viewing. Deployment, complete account security, subscription billing and authorised data-provider integrations remain unverified or unimplemented. Do not use with real customers yet.
 
 ## Product objectives
 - Search an email address and produce a structured investigation with source attribution and provenance.
@@ -32,8 +32,15 @@ All quotas are configurable; see [pricing specification](docs/PRICING.md). Provi
 - [Privacy, safety and acceptable use](docs/PRIVACY_AND_SAFETY.md)
 - [Delivery and verification plan](docs/DELIVERY_PLAN.md)
 
-## First implementation milestone
-Implement the design system, accessible marketing pages, pricing and registration flows, authenticated dashboard and investigation flow using **clearly marked synthetic fixtures**. Implement provider adapters and billing only after required keys, supplier contracts, payment configurations, privacy reviews and tests are in place.
+## Application source
+- Public website, plans, how-it-works, login, registration, and workspace: [public/index.php](public/index.php)
+- Premium responsive stylesheet: [public/assets/style.css](public/assets/style.css)
+- User/usage/investigation schema: [database/schema.sql](database/schema.sql)
+- cPanel Cron investigation worker: [bin/process-investigations.php](bin/process-investigations.php)
+- Installation and production blockers: [cPanel deployment](docs/CPANEL_DEPLOYMENT.md)
+- Automated PHP lint instructions: [.github/workflows/quality.yml](.github/workflows/quality.yml)
+
+The current worker performs live DNS configuration lookups **for the signed-in user's own email domain**. This is not equivalent to finding online accounts. Data breach checks, external provider discovery, payments and domain verification are not active. Demo visuals are labelled illustrative.
 
 ## Contribution expectations
 Keep changes scoped, avoid destructive repo updates, never commit secrets, and verify every asserted integration in staging before marking it functional.
