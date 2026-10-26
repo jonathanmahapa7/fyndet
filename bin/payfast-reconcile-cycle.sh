@@ -20,6 +20,7 @@ trap 'rm -f "$TMP"' EXIT
   echo "Mode: signed provider fetch only; never PATCH, cancel, or charge"
   "$PHP" "$ROOT/bin/payfast-update-reconcile.php"
   "$PHP" "$ROOT/bin/payfast-plan-change-audit.php"
+  "$PHP" "$ROOT/bin/payfast-failure-recovery-audit.php"
 } > "$TMP" 2>&1 || {
   cat "$TMP" > "$LOG"
   chmod 600 "$LOG"
