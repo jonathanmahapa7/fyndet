@@ -13,7 +13,7 @@ foreach(['PAYFAST_MODE'=>'sandbox','PAYFAST_LIVE_APPROVED'=>'0','PAID_BILLING_EN
 }
 try{
  $db=new PDO('mysql:host='.($env['DB_HOST']??'localhost').';port='.($env['DB_PORT']??'3306').';dbname='.($env['DB_NAME']??'').';charset=utf8mb4',$env['DB_USER']??'',$env['DB_PASS']??'',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);
- $q=$db->query("SELECT o.id,o.status,o.amount_cents,o.payment_id,COUNT(DISTINCT n.payment_id) AS completed_events,
+ $q=$db->query("SELECT o.id,o.status,o.amount_cents,o.payment_id,COUNT(DISTINCT CASE WHEN n.payment_status='COMPLETE' THEN n.payment_id END) AS completed_events,
  COUNT(DISTINCT i.payment_id) AS receipts,
  SUM(CASE WHEN n.payment_status='FAILED' THEN 1 ELSE 0 END) AS failures
  FROM payfast_orders o
