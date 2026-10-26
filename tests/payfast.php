@@ -96,4 +96,8 @@ assertion(!pfApiConfirmedAmount(401,$confirmedPayload,41430),'Unauthorised fetch
 assertion(!pfApiConfirmedAmount(200,$confirmedPayload,42000),'Wrong provider amount cannot confirm update');
 assertion(!pfApiConfirmedAmount(200,['status'=>'success','data'=>['response'=>['status_text'=>'CANCELLED','amount'=>41430]]],41430),'Cancelled provider subscription cannot confirm update');
 assertion(!pfApiConfirmedAmount(200,['status'=>'success','data'=>['response'=>['status_text'=>'ACTIVE','amount'=>'41430.99']]],41430),'Fractional provider amount rejected');
+assertion(pfReceiptPlan('pro')==='pro','Pro renewal payment retains its own receipt plan');
+assertion(pfReceiptPlan('starter')==='starter','Pre-upgrade payment retains its original receipt plan');
+$invalidReceipt=false;try{pfReceiptPlan('enterprise');}catch(DomainException $e){$invalidReceipt=true;}
+assertion($invalidReceipt,'Unrecognised receipt plan rejected');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
