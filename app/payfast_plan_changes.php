@@ -26,7 +26,7 @@ if($path==='/payfast/plan-change'&&$_SERVER['REQUEST_METHOD']==='POST'){
   $q->execute([$u['id'],$sub['order_id'],$from,$target,$usd,$zar]);
   $db->commit();
  }catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
- auditEvent((int)$u['id'],'billing.payfast.plan_change_requested',$direction.':'.$target);
+ pfBillingAuditEvent((int)$u['id'],'billing.payfast.plan_change_requested',$direction.':'.$target);
  flash('Your '. $direction .' request is recorded. No payment amount or plan benefits have changed. We will confirm terms before any change takes effect.');
  go('app/billing');
 }
@@ -41,7 +41,7 @@ if($path==='/payfast/plan-change/withdraw'&&$_SERVER['REQUEST_METHOD']==='POST')
   if($q->rowCount()!==1)throw new DomainException('No pending plan-change request to withdraw.');
   $db->commit();
  }catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
- auditEvent((int)$u['id'],'billing.payfast.plan_change_withdrawn',null);
+ pfBillingAuditEvent((int)$u['id'],'billing.payfast.plan_change_withdrawn',null);
  flash('Your plan-change request has been withdrawn. Your subscription remains unchanged.');
  go('app/billing');
 }
@@ -88,7 +88,7 @@ if($path==='/payfast/plan-change/confirm'&&$_SERVER['REQUEST_METHOD']==='POST'){
   if($q->rowCount()!==1)throw new RuntimeException('Provider confirmation requires reconciliation.');
   $db->commit();
  }catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
- auditEvent((int)$u['id'],'billing.payfast.plan_change_confirmed',(string)$id);
+ pfBillingAuditEvent((int)$u['id'],'billing.payfast.plan_change_confirmed',(string)$id);
  flash('PayFast has confirmed the future recurring amount. Your current plan stays active until a verified payment at the new amount.');
  go('app/billing');
 }
