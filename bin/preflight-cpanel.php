@@ -53,6 +53,7 @@ result(!str_starts_with($secret,'sk_') || str_starts_with($portal,'whsec_'),'Con
 $enabled=($env['PAID_BILLING_ENABLED']??'0')==='1';
 result(!$enabled || (str_starts_with($secret,'sk_')&&str_starts_with($portal,'whsec_')),'Paid billing enabled only with checkout and webhook credentials',true);
 if(($env['PAYFAST_ENABLED']??'0')==='1'){
+ result(($env['PAID_BILLING_ENABLED']??'0')!=='1','Only one payment gateway may be active (PayFast or Stripe)');
  result(in_array(($env['PAYFAST_MODE']??'sandbox'),['sandbox','live'],true),'PayFast environment is sandbox or live');
  if(($env['PAYFAST_MODE']??'sandbox')==='live')result(($env['PAYFAST_LIVE_APPROVED']??'0')==='1','PayFast live activation explicitly approved after payment acceptance tests');
  foreach(['PAYFAST_MERCHANT_ID','PAYFAST_MERCHANT_KEY','PAYFAST_PASSPHRASE'] as $setting)result(!empty($env[$setting]),'PayFast '.strtolower(str_replace('PAYFAST_','',$setting)).' configured');
