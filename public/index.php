@@ -102,7 +102,7 @@ function pageTop(string $title,bool $app=false):void {
    echo '<script type="application/ld+json" nonce="'.esc($GLOBALS['csp_nonce']??'').'">'.json_encode($faq,JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP).'</script>';
   }
  }
- echo '<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/style.css"><script defer src="/assets/app.js?v=payfast-direct-20261026b"></script></head><body>';
+ echo '<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/style.css"><script defer src="/assets/app.js?v=payfast-direct-20261026c"></script></head><body>';
 
  echo '<div class="site-shell"><header class="site-header"><div class="container header-in"><a class="brand" href="/" aria-label="FyndEt home"><span class="brand-mark"><span></span><span></span><span></span><span></span></span><span>fynd<span class="brand-accent">et</span><sup>®</sup></span></a><nav class="desktop-nav" aria-label="Primary"><a href="/#platform">Platform</a><a href="/how-it-works">How it works</a><a href="/pricing">Pricing</a><a href="/#faq">FAQs</a></nav><div class="nav-actions">';
  if($u) echo '<a class="text-link" href="/app">Dashboard</a><form method="post" action="/logout"><input type="hidden" name="_csrf" value="'.csrf().'"><button class="button button-small button-outline" type="submit">Sign out <span>↗</span></button></form>';
