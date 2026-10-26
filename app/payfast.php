@@ -54,6 +54,13 @@ function pfReusablePendingOrder(array $existing,string $plan,int $cents):string{
  if(!preg_match('/^[a-f0-9]{32}$/D',$id))throw new DomainException('Invalid pending checkout reference.');
  return $id;
 }
+function pfPendingAction(?array $existing,string $plan,int $cents,string $mode):string{
+ if(!$existing)return 'create';
+ if(hash_equals((string)($existing['plan']??''),$plan)&&(int)($existing['amount_cents']??-1)===$cents)return 'reuse';
+ // Changing or replacing an unconfirmed quote is safe in sandbox, never in live.
+ if($mode==='sandbox')return 'supersede';
+ throw new DomainException('An earlier checkout is pending. Please contact support before changing a live payment quote.');
+}
 function pfCheckout():never{
  if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit;}
  verifyCsrf();$user=mustUser();
@@ -73,9 +80,17 @@ function pfCheckout():never{
   if(!$lock->fetchColumn())throw new DomainException('Account no longer exists.');
   $pending=$pdo->prepare("SELECT id,plan,amount_cents FROM payfast_orders WHERE user_id=? AND mode=? AND status='pending' AND created_at>DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE) ORDER BY created_at DESC LIMIT 1");
   $pending->execute([$user['id'],pfMode()]);$existing=$pending->fetch();
-  if($existing){
+  $action=pfPendingAction($existing?:null,$plan,$cents,pfMode());
+  if($action==='reuse'){
    $order=pfReusablePendingOrder($existing,$plan,$cents);
   }else{
+   if($action==='supersede'){
+    // Only the account-owned, unconfirmed sandbox order is marked obsolete.
+    // A delayed COMPLETE notification for the obsolete order must not grant access.
+    $expire=$pdo->prepare("UPDATE payfast_orders SET status='superseded' WHERE id=? AND user_id=? AND mode='sandbox' AND status='pending'");
+    $expire->execute([$existing['id'],$user['id']]);
+    if($expire->rowCount()!==1)throw new RuntimeException('Pending checkout changed; retry.');
+   }
    $order=bin2hex(random_bytes(16));
    $insert=$pdo->prepare("INSERT INTO payfast_orders(id,user_id,plan,amount_cents,mode,status) VALUES (?,?,?,?,?,'pending')");
    $insert->execute([$order,$user['id'],$plan,$cents,pfMode()]);
@@ -122,7 +137,7 @@ function pfNotify():never{
  $db=db();$db->beginTransaction();
  try {
   $q=$db->prepare('SELECT id,user_id,plan,amount_cents,mode,status,payment_id FROM payfast_orders WHERE id=? FOR UPDATE');$q->execute([$order]);$item=$q->fetch();
-  if(!$item||$item['mode']!==pfMode()||pfGrossCents($fields['amount_gross']??null)!==(int)$item['amount_cents']){$db->rollBack();http_response_code(400);exit('Order mismatch');}
+  if(!$item||$item['status']==='superseded'||$item['mode']!==pfMode()||pfGrossCents($fields['amount_gross']??null)!==(int)$item['amount_cents']){$db->rollBack();http_response_code(400);exit('Order mismatch');}
   // Lock the user's subscription before recording the event. Never allow an older
   // merchant order or an old sandbox subscription to replace a newer subscription.
   $existingSub=$db->prepare('SELECT order_id,status,token,mode FROM payfast_subscriptions WHERE user_id=? FOR UPDATE');
