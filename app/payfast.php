@@ -66,7 +66,7 @@ function pfCheckout():never{
  verifyCsrf();$user=mustUser();
  if(empty($user['email_verified_at'])||!pfEnabled())throw new DomainException('PayFast checkout is not configured or email is not verified.');
  $plan=(string)($_POST['plan']??'');$cents=pfAmount($plan);
- if($cents<500)throw new DomainException('This PayFast plan has no valid ZAR price.');
+ if($cents<500)throw new DomainException('This subscription is temporarily unavailable while its payment quote is refreshed.');
  $q=db()->prepare('SELECT stripe_customer_id,subscription_status FROM users WHERE id=?');$q->execute([$user['id']]);$account=$q->fetch();
  if(!empty($account['stripe_customer_id'])||in_array((string)$account['subscription_status'],['active','trialing','past_due','unpaid'],true))throw new DomainException('Existing provider-managed subscription must be resolved before a new PayFast checkout.');
  $q=db()->prepare("SELECT COUNT(*) FROM payfast_subscriptions WHERE user_id=? AND status IN ('active','pending','paused')");
@@ -108,7 +108,7 @@ function pfCheckout():never{
  // limits form submission to self and would otherwise block the hosted gateway.
  // Restrict the exception to the exact active environment, never both.
  header('Content-Security-Policy: '.pfCheckoutCsp(pfMode()));
- echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>PayFast subscription checkout</title></head><body><h1>PayFast '.esc(ucfirst(pfMode())).' checkout</h1><p>Recurring subscription: R'.esc(number_format($cents/100,2)).' per month. '.(pfMode()==='sandbox'?'Sandbox simulation; no real payment.':'Live recurring payment; real money will be collected.').'</p><form action="'.esc($gateway).'" method="post">';
+ echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FyndEt subscription checkout</title></head><body><h1>FyndEt '.esc(ucfirst(pfMode())).' checkout</h1><p>Plan: '.esc(ucfirst($plan)).' — USD '.esc(number_format(fyndetUsdCents($plan)/100,2,'.',',')).' per month. '.(pfMode()==='sandbox'?'Sandbox simulation; no real payment.':'The payment provider will confirm its settlement currency and the recurring amount before you pay.').'</p><form action="'.esc($gateway).'" method="post">';
  foreach($fields as $k=>$v)echo '<input type="hidden" name="'.esc($k).'" value="'.esc((string)$v).'">';
  echo '<button type="submit">Continue to PayFast</button></form></body></html>';exit;
 }
