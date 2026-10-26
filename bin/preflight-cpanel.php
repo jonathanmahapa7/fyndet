@@ -53,7 +53,8 @@ result(!str_starts_with($secret,'sk_') || str_starts_with($portal,'whsec_'),'Con
 $enabled=($env['PAID_BILLING_ENABLED']??'0')==='1';
 result(!$enabled || (str_starts_with($secret,'sk_')&&str_starts_with($portal,'whsec_')),'Paid billing enabled only with checkout and webhook credentials',true);
 if(($env['PAYFAST_ENABLED']??'0')==='1'){
- result(($env['PAYFAST_MODE']??'sandbox')==='sandbox','PayFast enabled in sandbox mode only pending live billing acceptance');
+ result(in_array(($env['PAYFAST_MODE']??'sandbox'),['sandbox','live'],true),'PayFast environment is sandbox or live');
+ if(($env['PAYFAST_MODE']??'sandbox')==='live')result(($env['PAYFAST_LIVE_APPROVED']??'0')==='1','PayFast live activation explicitly approved after payment acceptance tests');
  foreach(['PAYFAST_MERCHANT_ID','PAYFAST_MERCHANT_KEY','PAYFAST_PASSPHRASE'] as $setting)result(!empty($env[$setting]),'PayFast '.strtolower(str_replace('PAYFAST_','',$setting)).' configured');
  foreach(['STARTER','PRO','BUSINESS'] as $tier)result(preg_match('/^[1-9][0-9]{0,5}(?:\\.[0-9]{2})?$/',(string)($env['PAYFAST_PRICE_'.$tier.'_ZAR']??''))===1,'PayFast ZAR price for '.$tier);
  if($databaseReady&&isset($db))foreach(['payfast_orders','payfast_subscriptions','payfast_notifications','payfast_invoices'] as $table){$q=$db->query("SHOW TABLES LIKE ".$db->quote($table));result((bool)$q->fetch(),'PayFast billing table '.$table);}
