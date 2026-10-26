@@ -22,4 +22,14 @@ assertion(str_contains(pfCheckoutCsp('sandbox'),'form-action https://sandbox.pay
 assertion(!str_contains(pfCheckoutCsp('sandbox'),'www.payfast.co.za'),'Sandbox checkout CSP excludes live gateway');
 assertion(str_contains(pfCheckoutCsp('live'),'form-action https://www.payfast.co.za'),'Live checkout CSP permits live gateway');
 assertion(!str_contains(pfCheckoutCsp('live'),'sandbox.payfast.co.za'),'Live checkout CSP excludes sandbox gateway');
+$sample=['id'=>str_repeat('a',32),'plan'=>'starter','amount_cents'=>25000];
+assertion(pfReusablePendingOrder($sample,'starter',25000)===str_repeat('a',32),'Matching pending checkout retains original reference');
+foreach ([['pro',25000],['starter',41500]] as [$plan,$amount]) {
+ $rejected=false;
+ try {pfReusablePendingOrder($sample,$plan,$amount);}catch(DomainException $e){$rejected=true;}
+ assertion($rejected,'Mismatched pending checkout cannot be reused');
+}
+$rejected=false;
+try{pfReusablePendingOrder(['id'=>'bad','plan'=>'starter','amount_cents'=>25000],'starter',25000);}catch(DomainException $e){$rejected=true;}
+assertion($rejected,'Malformed pending checkout reference rejected');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
