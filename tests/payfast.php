@@ -65,4 +65,5 @@ assertion(pfApiSubscriptionCancelledResponse(200,$cancelled),'Confirmed provider
 assertion(!pfApiSubscriptionCancelledResponse(200,['status'=>'success','data'=>['response'=>['status_text'=>'ACTIVE']]]),'Active provider status rejected');
 assertion(!pfApiSubscriptionCancelledResponse(401,$cancelled),'Unauthenticated provider status rejected');
 assertion(!pfApiSubscriptionCancelledResponse(200,['status'=>'success','data'=>['response'=>true]]),'Bare success boolean cannot substitute for cancelled state');
+assertion(preg_match('/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+00:00$/',gmdate('Y-m-d\\TH:i:s+00:00'))===1,'ISO-8601 subscription API timestamp format');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
