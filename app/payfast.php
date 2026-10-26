@@ -134,6 +134,12 @@ function pfRenewalPolicy(array $order,?array $subscription,string $status,string
  if($subscription && !empty($subscription['token']) && $token!=='' && !hash_equals((string)$subscription['token'],$token))return 'reject';
  return 'activate';
 }
+/** Preserve original checkout while accepting only explicit provider-confirmed change quotes. */
+function pfItnAmountDecision(int $initialCents,int $grossCents,?array $change):string{
+ if($grossCents===$initialCents)return 'original';
+ if($change&&in_array((string)($change['status']??''),['provider_confirmed','applied'],true)&&$grossCents===(int)($change['quoted_zar_cents']??-1))return 'changed';
+ return 'reject';
+}
 function pfNotify():never{
  if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit;}
  if(!pfEnabled()){http_response_code(503);exit('PayFast disabled');}
@@ -152,7 +158,12 @@ function pfNotify():never{
  $db=db();$db->beginTransaction();
  try {
   $q=$db->prepare('SELECT id,user_id,plan,amount_cents,mode,status,payment_id FROM payfast_orders WHERE id=? FOR UPDATE');$q->execute([$order]);$item=$q->fetch();
-  if(!$item||$item['status']==='superseded'||$item['mode']!==pfMode()||pfGrossCents($fields['amount_gross']??null)!==(int)$item['amount_cents']){$db->rollBack();http_response_code(400);exit('Order mismatch');}
+  if(!$item||$item['status']==='superseded'||$item['mode']!==pfMode()){$db->rollBack();http_response_code(400);exit('Order mismatch');}
+  $gross=pfGrossCents($fields['amount_gross']??null);
+  $changed=$db->prepare("SELECT id,from_plan,to_plan,quoted_zar_cents,status FROM payfast_plan_changes WHERE user_id=? AND order_id=? AND status IN ('provider_confirmed','applied') ORDER BY id DESC LIMIT 1 FOR UPDATE");
+  $changed->execute([$item['user_id'],$order]);$change=$changed->fetch()?:null;
+  $amountDecision=$gross===null?'reject':pfItnAmountDecision((int)$item['amount_cents'],$gross,$change);
+  if($amountDecision==='reject'){$db->rollBack();http_response_code(400);exit('Amount mismatch');}
   // Lock the user's subscription before recording the event. Never allow an older
   // merchant order or an old sandbox subscription to replace a newer subscription.
   $existingSub=$db->prepare('SELECT order_id,status,token,mode FROM payfast_subscriptions WHERE user_id=? FOR UPDATE');
@@ -179,7 +190,17 @@ function pfNotify():never{
    // Only validated LIVE notifications grant paid investigation entitlements.
    if(pfMode()==='live'&&$policy==='activate'){$q=$db->prepare("UPDATE users SET plan=?,subscription_status='active' WHERE id=? AND (stripe_customer_id IS NULL OR stripe_customer_id='')");$q->execute([$item['plan'],$item['user_id']]);}
    $q=$db->prepare("INSERT IGNORE INTO payfast_invoices(invoice_number,user_id,payment_id,order_id,amount_cents,currency,status) VALUES(?,?,?,?,?,'ZAR',?)");
-   $q->execute(['PF-'.strtoupper(substr(hash('sha256',$payment),0,32)),$item['user_id'],$payment,$order,$item['amount_cents'],pfMode()==='live'?'paid':'sandbox_paid']);
+   $q->execute(['PF-'.strtoupper(substr(hash('sha256',$payment),0,32)),$item['user_id'],$payment,$order,$gross,pfMode()==='live'?'paid':'sandbox_paid']);
+   if($policy==='activate' && $amountDecision==='changed' && $change && $change['status']==='provider_confirmed'){
+    $q=$db->prepare("UPDATE payfast_plan_changes SET status='applied' WHERE id=? AND status='provider_confirmed'");
+    $q->execute([$change['id']]);
+    $q=$db->prepare("UPDATE payfast_subscriptions SET plan=? WHERE user_id=? AND order_id=? AND status='active'");
+    $q->execute([$change['to_plan'],$item['user_id'],$order]);
+    if(pfMode()==='live'){
+     $q=$db->prepare("UPDATE users SET plan=?,subscription_status='active' WHERE id=? AND (stripe_customer_id IS NULL OR stripe_customer_id='')");
+     $q->execute([$change['to_plan'],$item['user_id']]);
+    }
+   }
   }elseif($state==='FAILED'||$state==='CANCELLED'){
    // Failure of a renewal is an exception requiring reconciliation. Do not
    // automatically revoke an already-paid term without verified period data.
