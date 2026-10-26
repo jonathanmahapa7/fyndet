@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/mount.php';
 date_default_timezone_set('UTC');
 // cPanel can run a split document root: public files in public_html, app files kept private.
 $requestedRoot=(string)(getenv('FYNDET_APP_ROOT')?:'');
@@ -18,7 +19,7 @@ function cfg(string $key,string $default=''):string {global $env;return (string)
 if(PHP_SAPI!=='cli'){
  $secure=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off') || ($_SERVER['HTTP_X_FORWARDED_PROTO']??'')==='https';
  session_name('fyndet_session');
- session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>$secure,'httponly'=>true,'samesite'=>'Lax']);
+ session_set_cookie_params(['lifetime'=>0,'path'=>(FYNDET_MOUNT?:'/'),'secure'=>$secure,'httponly'=>true,'samesite'=>'Lax']);
  session_start();
  header('Cache-Control: no-store');
  header('X-Content-Type-Options: nosniff');
@@ -27,7 +28,7 @@ if(PHP_SAPI!=='cli'){
 }
 function db():PDO {static $pdo=null;if(!$pdo){$dsn='mysql:host='.cfg('DB_HOST','localhost').';port='.cfg('DB_PORT','3306').';dbname='.cfg('DB_NAME').';charset=utf8mb4';$pdo=new PDO($dsn,cfg('DB_USER'),cfg('DB_PASS'),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);}return $pdo;}
 function esc(?string $s):string{return htmlspecialchars((string)$s,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');}
-function url(string $path=''):string{return '/'.ltrim($path,'/');}
+function url(string $path=''):string{return FYNDET_MOUNT.'/'.ltrim($path,'/');}
 function go(string $path):never {header('Location: '.url($path),true,303);exit;}
 function csrf():string {if(empty($_SESSION['csrf']))$_SESSION['csrf']=bin2hex(random_bytes(32));return $_SESSION['csrf'];}
 function verifyCsrf():void {if(!hash_equals(csrf(),(string)($_POST['_csrf']??''))) {http_response_code(419);exit('Invalid session token. Please go back, reload and try again.');}}
@@ -80,7 +81,7 @@ function pageTop(string $title,bool $app=false):void {
  ];
  $indexable=array_key_exists($path,$publicRoutes);
  $origin=rtrim(cfg('APP_URL',''),' /');
- $trustedOrigin=preg_match('~^https://[a-z0-9.-]+(?::443)?$~i',$origin)===1?$origin:'';
+ $trustedOrigin=preg_match('~^https://[a-z0-9.-]+(?::443)?(?:/fyndet)?$~i',$origin)===1?$origin:'';
  $description=$publicRoutes[$path][1]??'A private, evidence-led email intelligence workspace.';
  $pageTitle=$indexable?$publicRoutes[$path][0]:$title;
  if(!$indexable)header('X-Robots-Tag: noindex, nofollow, noarchive');
