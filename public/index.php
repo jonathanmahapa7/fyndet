@@ -234,6 +234,7 @@ try {
      echo '<div class="evidence-section"><p class="eyebrow">SOURCE COVERAGE & PROVENANCE</p><h3>Expanded discovery</h3><p class="muted">Source observations are not proof that the address belongs to an account. Results only cover sources actually checked.</p>';
      foreach($extended['sources'] as $sectionName=>$section){
        $state=(string)($section['state']??'not_checked');
+       if($state==='not_checked'||$state==='source_unavailable')continue;
        echo '<article class="evidence-item"><div class="report-title"><h4>'.esc(ucwords(str_replace('_',' ',$sectionName))).'</h4><span class="status">'.esc(strtoupper($state)).'</span></div><p class="muted">'.esc((string)($section['reason']??'')).'</p>';
        if(!empty($section['posture'])){ $posture=$section['posture']; echo '<p class="muted">Mail routing: '.(!empty($posture['mx_published'])?'Published':'Not observed').' | SPF: '.esc((string)($posture['spf_policy']??'Unknown')).' | DMARC: '.esc((string)($posture['dmarc_policy']??'Unknown')).'</p>'; foreach(($posture['observations']??[]) as $note)echo '<p class="muted"><strong>'.esc((string)($note['title']??'Finding')).'</strong> — '.esc((string)($note['explanation']??'')).'</p>'; }
        foreach(array_slice($section['items']??[],0,12) as $item){
@@ -249,6 +250,7 @@ try {
    if(!empty($result['evidence_summary']))echo '<p class="muted">Evidence observations: '.(int)($result['evidence_summary']['observations']??0).'. '.esc((string)($result['evidence_summary']['limitations']??'')).'</p>';
    foreach(['public_references'=>'Public footprint references','breach_exposure'=>'Breach exposure metadata'] as $key=>$heading){
      $data=$result[$key]??['state'=>'not_checked','reason'=>'Not enabled in this release','items'=>[]];
+     if(in_array((string)($data['state']??''),['not_checked','source_unavailable'],true))continue;
      echo '<div class="evidence-section"><div class="report-title"><h3>'.esc($heading).'</h3><span class="status">'.esc(strtoupper((string)($data['state']??'unknown'))).'</span></div><p class="muted">'.esc((string)($data['reason']??'')).'</p>';
      foreach(($data['items']??[]) as $evidence){
        echo '<article class="evidence-item"><span class="eyebrow">'.esc((string)($evidence['type']??'EVIDENCE')).'</span>';
