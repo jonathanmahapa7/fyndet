@@ -37,7 +37,7 @@ function pfApiConfirmedAmount(int $http,mixed $payload,int $amount):bool{
  $response=is_array($payload)?($payload['data']['response']??null):null;
  return $http===200 && is_array($payload)&&($payload['status']??null)==='success'&&is_array($response)&&
   strtoupper(trim((string)($response['status_text']??'')))==='ACTIVE'&&
-  isset($response['amount'])&&is_numeric($response['amount'])&&
+  isset($response['amount'])&&(is_int($response['amount'])||(is_string($response['amount'])&&ctype_digit($response['amount'])))&&
   (int)$response['amount']===$amount;
 }
 function pfApiUpdateAmount(string $token,int $amount):bool{
