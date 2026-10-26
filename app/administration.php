@@ -32,6 +32,15 @@ if($path==='/admin'){
  $customers=db()->query('SELECT email,name,plan,subscription_status,created_at FROM users ORDER BY id DESC LIMIT 50')->fetchAll();
  foreach($customers as $account)echo '<tr><td>'.esc((string)$account['email']).'</td><td>'.esc((string)$account['plan']).'</td><td>'.esc((string)$account['subscription_status']).'</td><td>'.esc((string)$account['created_at']).'</td></tr>';
  echo '</tbody></table></div></section>';fyndetAdminUsers($u);
+ $changeRequests=db()->query("SELECT c.id,c.from_plan,c.to_plan,c.status,c.requested_at,u.email FROM payfast_plan_changes c JOIN users u ON u.id=c.user_id WHERE c.status='awaiting_review' ORDER BY c.requested_at ASC LIMIT 50")->fetchAll();
+ echo '<section class="panel" style="margin-top:18px"><h2>Pending PayFast plan-change requests</h2><p class="muted">Review only. No payment update or customer entitlement changes are authorised through this overview.</p>';
+ if(!$changeRequests)echo '<p>No pending plan changes.</p>';
+ else{
+  echo '<div class="table-scroll"><table><thead><tr><th>Customer</th><th>Current</th><th>Requested</th><th>Received</th></tr></thead><tbody>';
+  foreach($changeRequests as $c)echo '<tr><td>'.esc((string)$c['email']).'</td><td>'.esc(ucfirst((string)$c['from_plan'])).'</td><td>'.esc(ucfirst((string)$c['to_plan'])).'</td><td>'.esc((string)$c['requested_at']).'</td></tr>';
+  echo '</tbody></table></div>';
+ }
+ echo '</section>';
  $pfOrders=db()->query("SELECT o.id,o.plan,o.mode,o.status,o.amount_cents,o.created_at,u.email FROM payfast_orders o JOIN users u ON u.id=o.user_id ORDER BY o.created_at DESC LIMIT 30")->fetchAll();
  echo '<section class="panel" style="margin-top:18px"><h2>PayFast transactions</h2><p class="muted">Most recent 30 attempts, sandbox and live shown separately. This list is operational; reconcile payments with the PayFast merchant dashboard.</p><div class="table-scroll"><table><thead><tr><th>Customer</th><th>Plan</th><th>Environment</th><th>Amount</th><th>Status</th></tr></thead><tbody>';
  foreach($pfOrders as $entry)echo '<tr><td>'.esc((string)$entry['email']).'</td><td>'.esc((string)$entry['plan']).'</td><td>'.esc((string)$entry['mode']).'</td><td>R'.esc(number_format((int)$entry['amount_cents']/100,2)).'</td><td>'.esc((string)$entry['status']).'</td></tr>';
