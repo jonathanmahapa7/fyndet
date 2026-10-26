@@ -8,10 +8,13 @@ function pfAmount(string $plan):int{
  if(!preg_match('/^[1-9][0-9]{0,5}(?:\.[0-9]{2})?$/',$raw))return 0;
  return (int)round((float)$raw*100);
 }
-function pfSignature(array $fields,string $passphrase):string{
+function pfParameterString(array $fields):string{
  unset($fields['signature']);$parts=[];
- foreach($fields as $k=>$v)if($v!==''&&$v!==null)$parts[]=urlencode((string)$k).'='.urlencode(trim((string)$v));
- return md5(implode('&',$parts).'&passphrase='.urlencode($passphrase));
+ foreach($fields as $k=>$v)if($v!==''&&$v!==null)$parts[]=(string)$k.'='.urlencode(trim((string)$v));
+ return implode('&',$parts);
+}
+function pfSignature(array $fields,string $passphrase):string{
+ return md5(pfParameterString($fields).'&passphrase='.urlencode(trim($passphrase)));
 }
 function pfCheckout():never{
  if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit;}
@@ -54,7 +57,7 @@ function pfNotify():never{
  $claimed=strtolower((string)$fields['signature']);$expected=pfSignature($fields,cfg('PAYFAST_PASSPHRASE'));
  if(!hash_equals($expected,$claimed)){http_response_code(403);exit('Invalid signature');}
  if(!hash_equals(cfg('PAYFAST_MERCHANT_ID'),(string)($fields['merchant_id']??''))){http_response_code(403);exit('Merchant mismatch');}
- if(!pfServerValidation($raw)){http_response_code(403);exit('Source confirmation failed');}
+ if(!pfServerValidation(pfParameterString($fields))){http_response_code(403);exit('Source confirmation failed');}
  $order=(string)($fields['m_payment_id']??'');$payment=(string)($fields['pf_payment_id']??'');
  $state=(string)($fields['payment_status']??'');
  if(!preg_match('/^[a-f0-9]{32}$/',$order)||!preg_match('/^[a-zA-Z0-9_-]{1,80}$/',$payment)||!in_array($state,['COMPLETE','FAILED','PENDING','CANCELLED'],true)){http_response_code(400);exit('Invalid transaction');}
