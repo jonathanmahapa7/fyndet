@@ -164,6 +164,14 @@ function pfNotify():never{
   $q=$db->prepare('SELECT id,user_id,plan,amount_cents,mode,status,payment_id FROM payfast_orders WHERE id=? FOR UPDATE');$q->execute([$order]);$item=$q->fetch();
   if(!$item||$item['status']==='superseded'||$item['mode']!==pfMode()){$db->rollBack();http_response_code(400);exit('Order mismatch');}
   $gross=pfGrossCents($fields['amount_gross']??null);
+  // A genuine new-amount ITN may arrive while provider PATCH reconciliation
+  // is pending. Return a retryable response, not a permanent amount rejection.
+  $inflight=$db->prepare("SELECT quoted_zar_cents FROM payfast_plan_changes WHERE user_id=? AND order_id=? AND status='updating' ORDER BY id DESC LIMIT 1 FOR UPDATE");
+  $inflight->execute([$item['user_id'],$order]);$pendingAmount=$inflight->fetchColumn();
+  if($pendingAmount!==false&&$gross!==null&&$gross===(int)$pendingAmount){
+   $db->rollBack();http_response_code(503);exit('Subscription amount verification pending');
+  }
+
   $changed=$db->prepare("SELECT id,from_plan,to_plan,quoted_zar_cents,status FROM payfast_plan_changes WHERE user_id=? AND order_id=? AND status IN ('provider_confirmed','applied') ORDER BY id DESC LIMIT 1 FOR UPDATE");
   $changed->execute([$item['user_id'],$order]);$change=$changed->fetch()?:null;
   $amountDecision=$gross===null?'reject':pfItnAmountDecision((int)$item['amount_cents'],$gross,$change);
