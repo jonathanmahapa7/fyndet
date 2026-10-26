@@ -71,6 +71,40 @@ function pfPendingAction(?array $existing,string $plan,int $cents,string $mode):
  if($mode==='sandbox')return 'supersede';
  throw new DomainException('An earlier checkout is pending. Please contact support before changing a live payment quote.');
 }
+/** Direct hosted forms: signed once on server, then the user's own button
+ * posts straight to PayFast. No AJAX, intermediate checkout or JS required.
+ * Each distinct plan reference is reused for 30 minutes to avoid reload spam.
+ */
+function pfDirectHostedCheckout(array $user,string $plan):?array{
+ if(!pfEnabled()||empty($user['email_verified_at']))return null;
+ $amount=pfAmount($plan);
+ if($amount<500)return null;
+ $db=db();
+ $q=$db->prepare('SELECT stripe_customer_id,subscription_status FROM users WHERE id=?');
+ $q->execute([$user['id']]);$account=$q->fetch();
+ if(!$account||!empty($account['stripe_customer_id'])||in_array((string)$account['subscription_status'],['active','trialing','past_due','unpaid'],true))return null;
+ $q=$db->prepare("SELECT COUNT(*) FROM payfast_subscriptions WHERE user_id=? AND status IN ('active','pending','paused')");
+ $q->execute([$user['id']]);if((int)$q->fetchColumn()>0)return null;
+ $db->beginTransaction();
+ try{
+  $q=$db->prepare('SELECT id FROM users WHERE id=? FOR UPDATE');
+  $q->execute([$user['id']]);if(!$q->fetchColumn())throw new DomainException('Account unavailable.');
+  $q=$db->prepare("SELECT id FROM payfast_orders WHERE user_id=? AND mode=? AND plan=? AND amount_cents=? AND status='pending' AND created_at>DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE) ORDER BY created_at DESC LIMIT 1");
+  $q->execute([$user['id'],pfMode(),$plan,$amount]);
+  $order=$q->fetchColumn();
+  if($order===false){
+   $order=bin2hex(random_bytes(16));
+   $q=$db->prepare("INSERT INTO payfast_orders(id,user_id,plan,amount_cents,mode,status) VALUES (?,?,?,?,?,'pending')");
+   $q->execute([$order,$user['id'],$plan,$amount,pfMode()]);
+  }
+  $db->commit();
+ }catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
+ $base=rtrim(cfg('APP_URL'),'/');
+ if(!str_starts_with($base,'https://'))throw new DomainException('Secure application URL required.');
+ $fields=['merchant_id'=>cfg('PAYFAST_MERCHANT_ID'),'merchant_key'=>cfg('PAYFAST_MERCHANT_KEY'),'return_url'=>$base.'/app/billing?success=1','cancel_url'=>$base.'/app/billing?cancel=1','notify_url'=>$base.'/payfast/notify','name_first'=>mb_substr((string)$user['name'],0,100),'email_address'=>$user['email'],'m_payment_id'=>(string)$order,'amount'=>number_format($amount/100,2,'.',''),'item_name'=>'FyndEt '.ucfirst($plan).' monthly subscription',...pfCheckoutSubscriptionFields($amount)];
+ $fields['signature']=pfSignature($fields,cfg('PAYFAST_PASSPHRASE'));
+ return ['gateway'=>pfMode()==='live'?'https://www.payfast.co.za/eng/process':'https://sandbox.payfast.co.za/eng/process','fields'=>$fields];
+}
 function pfCheckout():never{
  if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit;}
  verifyCsrf();$user=mustUser();
