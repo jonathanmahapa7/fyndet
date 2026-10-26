@@ -221,8 +221,16 @@ try {
    $usd=number_format(fyndetUsdCents($tier)/100,2,'.',',');
    echo '<article class="panel"><h3>'.esc(ucfirst($tier)).'</h3><p>USD '.esc($usd).' / month</p><p class="muted">'.esc((string)credits($tier)).' monthly investigation credits</p>';
    if(pfEnabled()){
-    $canCheckout=pfAmount($tier)>=500 && !empty($u['email_verified_at']);
-    echo '<form class="fyndet-payfast-direct" method="post" action="/payfast/checkout"><input type="hidden" name="_csrf" value="'.csrf().'"><input type="hidden" name="plan" value="'.esc($tier).'"><button class="button button-outline"'.($canCheckout?'':' disabled').'>'.(pfMode()==='sandbox'?'Test ':'Subscribe to ').esc(ucfirst($tier)).'</button></form>';
+    $hosted=pfDirectHostedCheckout($u,$tier);
+    if($hosted){
+     echo '<form method="post" action="'.esc($hosted['gateway']).'" accept-charset="UTF-8">';
+     foreach($hosted['fields'] as $name=>$value){
+      echo '<input type="hidden" name="'.esc((string)$name).'" value="'.esc((string)$value).'">';
+     }
+     echo '<button type="submit" class="button button-outline">'.(pfMode()==='sandbox'?'Test ':'Subscribe to ').esc(ucfirst($tier)).'</button></form>';
+    }else{
+     echo '<button type="button" class="button button-outline" disabled>Subscribe to '.esc(ucfirst($tier)).'</button>';
+    }
    }
    echo '</article>';
   }
