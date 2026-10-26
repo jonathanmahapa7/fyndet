@@ -52,6 +52,12 @@ $secret=$env['STRIPE_SECRET_KEY']??'';$portal=$env['STRIPE_WEBHOOK_SECRET']??'';
 result(!str_starts_with($secret,'sk_') || str_starts_with($portal,'whsec_'),'Configured Stripe billing has signed webhooks',false);
 $enabled=($env['PAID_BILLING_ENABLED']??'0')==='1';
 result(!$enabled || (str_starts_with($secret,'sk_')&&str_starts_with($portal,'whsec_')),'Paid billing enabled only with checkout and webhook credentials',true);
+if(($env['PAYFAST_ENABLED']??'0')==='1'){
+ result(($env['PAYFAST_MODE']??'sandbox')==='sandbox','PayFast enabled in sandbox mode only pending live billing acceptance');
+ foreach(['PAYFAST_MERCHANT_ID','PAYFAST_MERCHANT_KEY','PAYFAST_PASSPHRASE'] as $setting)result(!empty($env[$setting]),'PayFast '.strtolower(str_replace('PAYFAST_','',$setting)).' configured');
+ foreach(['STARTER','PRO','BUSINESS'] as $tier)result(preg_match('/^[1-9][0-9]{0,5}(?:\\.[0-9]{2})?$/',(string)($env['PAYFAST_PRICE_'.$tier.'_ZAR']??''))===1,'PayFast ZAR price for '.$tier);
+ if($databaseReady&&isset($db))foreach(['payfast_orders','payfast_subscriptions','payfast_notifications','payfast_invoices'] as $table){$q=$db->query("SHOW TABLES LIKE ".$db->quote($table));result((bool)$q->fetch(),'PayFast billing table '.$table);}
+}
 if(($env['HIBP_ENABLED']??'0')==='1')result(!empty($env['HIBP_API_KEY']),'Licensed breach adapter has API credentials');
 if(($env['GITHUB_PUBLIC_COMMITS_ENABLED']??'0')==='1')result(empty($env['GITHUB_TOKEN'])||str_starts_with((string)$env['GITHUB_TOKEN'],'github_pat_')||str_starts_with((string)$env['GITHUB_TOKEN'],'ghp_'),'Public commit adapter supports key-free access or a recognised optional token');
 echo "\nSummary: $errors blocking failures, $warnings advisories\n";
