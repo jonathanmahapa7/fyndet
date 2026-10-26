@@ -31,5 +31,9 @@ if($path==='/admin'){
  echo '</section><section class="panel" style="margin-top:18px"><h2>Customers &amp; subscription overview</h2><p class="muted">Live account overview. Paid plans remain controlled by the configured billing provider; no subscription edits are applied here.</p><div class="table-scroll"><table><thead><tr><th>Customer</th><th>Plan</th><th>Billing status</th><th>Joined</th></tr></thead><tbody>';
  $customers=db()->query('SELECT email,name,plan,subscription_status,created_at FROM users ORDER BY id DESC LIMIT 50')->fetchAll();
  foreach($customers as $account)echo '<tr><td>'.esc((string)$account['email']).'</td><td>'.esc((string)$account['plan']).'</td><td>'.esc((string)$account['subscription_status']).'</td><td>'.esc((string)$account['created_at']).'</td></tr>';
- echo '</tbody></table></div></section>';fyndetAdminUsers($u);echo '</main>';pageEnd();exit;
+ echo '</tbody></table></div></section>';fyndetAdminUsers($u);
+ $pfOrders=db()->query("SELECT o.id,o.plan,o.mode,o.status,o.amount_cents,o.created_at,u.email FROM payfast_orders o JOIN users u ON u.id=o.user_id ORDER BY o.created_at DESC LIMIT 30")->fetchAll();
+ echo '<section class="panel" style="margin-top:18px"><h2>PayFast transactions</h2><p class="muted">Most recent 30 attempts, sandbox and live shown separately. This list is operational; reconcile payments with the PayFast merchant dashboard.</p><div class="table-scroll"><table><thead><tr><th>Customer</th><th>Plan</th><th>Environment</th><th>Amount</th><th>Status</th></tr></thead><tbody>';
+ foreach($pfOrders as $entry)echo '<tr><td>'.esc((string)$entry['email']).'</td><td>'.esc((string)$entry['plan']).'</td><td>'.esc((string)$entry['mode']).'</td><td>R'.esc(number_format((int)$entry['amount_cents']/100,2)).'</td><td>'.esc((string)$entry['status']).'</td></tr>';
+ echo '</tbody></table></div></section></main>';pageEnd();exit;
 }
