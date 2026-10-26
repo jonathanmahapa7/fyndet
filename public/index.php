@@ -213,21 +213,21 @@ try {
   if(isset($_GET['success']))echo '<p class="flash">Checkout completed. Your subscription status will update after secure payment confirmation.</p>';
   if(isset($_GET['cancel']))echo '<p class="flash">Checkout cancelled. No plan change was applied.</p>';
   if(empty($u['email_verified_at']))echo '<p class="flash">Verify your registered email address before starting a paid subscription.</p>';
-  echo '<section class="panel" style="margin:18px 0"><h2>USD subscription pricing</h2><p class="muted">USD is the standard subscription currency. PayFast settlement is in ZAR; amounts shown in rand are exchange-rate estimates, not guaranteed card conversion rates.</p><div class="billing-choices">';
+  echo '<section class="panel" style="margin:18px 0"><h2>Choose your subscription</h2><p class="muted">All FyndEt plan prices are in USD. '.(pfEnabled()&&pfMode()==='sandbox'?'Sandbox testing only; no real payments or production entitlements.':'Subscription access activates after verified payment confirmation.').'</p><div class="billing-choices">';
   foreach(['starter','pro','business'] as $tier){
-   $usd=number_format(fyndetUsdCents($tier)/100,2);
-   $zar=fyndetIndicativeZar($tier,$fx);
-   echo '<article class="panel"><h3>'.esc(ucfirst($tier)).'</h3><p>USD '.esc($usd).' / month</p>'.($zar!==null?'<p class="muted">Indicative ZAR '.esc($zar).' / month</p>':'').'</article>';
+   $usd=number_format(fyndetUsdCents($tier)/100,2,'.',',');
+   echo '<article class="panel"><h3>'.esc(ucfirst($tier)).'</h3><p>USD '.esc($usd).' / month</p><p class="muted">'.esc((string)credits($tier)).' monthly investigation credits</p>';
+   if(pfEnabled()){
+    $canCheckout=pfAmount($tier)>=500 && !empty($u['email_verified_at']);
+    echo '<form method="post" action="/payfast/checkout"><input type="hidden" name="_csrf" value="'.csrf().'"><input type="hidden" name="plan" value="'.esc($tier).'"><button class="button button-outline"'.($canCheckout?'':' disabled').'>'.(pfMode()==='sandbox'?'Test ':'Subscribe to ').esc(ucfirst($tier)).'</button></form>';
+   }
+   echo '</article>';
   }
-  echo '</div>'.($fx?'<p class="muted">Indicative USD/ZAR reference: '.esc(number_format((float)$fx['rate'],4)).' ('.esc((string)$fx['date']).', Frankfurter). Actual payment conversion may differ.</p>':'<p class="muted">FX reference unavailable. USD prices remain unchanged.</p>').'</section>';
-  if(pfEnabled()){
-   echo '<section class="panel" style="margin:18px 0"><h2>PayFast '.esc(ucfirst(pfMode())).' — monthly subscriptions</h2><p class="muted">'.(pfMode()==='sandbox'?'Sandbox transactions only: no real payments or production entitlements.':'Recurring payments are charged in ZAR at the quoted amount; later renewals do not automatically track USD/ZAR. Access activates only after verified payment notification.').'</p><div class="billing-choices">';
-   foreach(['starter','pro','business'] as $tier){$cents=pfAmount($tier);if($cents<500)continue;echo '<article class="panel"><h3>'.esc(ucfirst($tier)).'</h3><p>R'.esc(number_format($cents/100,2)).' / month</p><form method="post" action="/payfast/checkout"><input type="hidden" name="_csrf" value="'.csrf().'"><input type="hidden" name="plan" value="'.$tier.'"><button class="button button-outline"'.(empty($u['email_verified_at'])?' disabled':'').'>'.(pfMode()==='sandbox'?'Test ':'Subscribe to ').esc(ucfirst($tier)).'</button></form></article>';}
-   echo '</div></section>';
-  }
+  echo '</div></section>';
+  if(pfEnabled() && pfAmount('starter')<500)echo '<p class="flash">Checkout is temporarily unavailable while the payment quote is refreshed. Please try again shortly.</p>';
   $inv=db()->prepare('SELECT id,invoice_number,amount_cents,currency,status,issued_at FROM payfast_invoices WHERE user_id=? ORDER BY issued_at DESC LIMIT 30');$inv->execute([$u['id']]);$receipts=$inv->fetchAll();
   if(pfEnabled()){$subscriptionQuery=db()->prepare('SELECT token,status FROM payfast_subscriptions WHERE user_id=? AND mode=?');$subscriptionQuery->execute([$u['id'],pfMode()]);$currentPf=$subscriptionQuery->fetch();if($currentPf&&$currentPf['status']==='active'&&!empty($currentPf['token']))echo '<section class="panel"><h2>PayFast subscription management</h2><p>PayFast confirmed an active '.esc(pfMode()).' subscription.</p><form method="post" action="/payfast/cancel"><input type="hidden" name="_csrf" value="'.csrf().'"><button class="button button-outline" >Cancel subscription</button></form></section>';}
-  if($receipts){echo '<section class="panel"><h2>PayFast payment records</h2><p class="muted">Payment records are not VAT tax invoices. Sandbox payments are simulations.</p>';foreach($receipts as $receipt)echo '<p>'.esc((string)$receipt['invoice_number']).' · '.esc((string)$receipt['issued_at']).' · '.esc((string)$receipt['currency']).' '.esc(number_format((int)$receipt['amount_cents']/100,2)).' · '.esc((string)$receipt['status']).' · <a href="/payfast/invoice?id='.(int)$receipt['id'].'">View record</a> · <a href="/payfast/invoice.pdf?id='.(int)$receipt['id'].'">PDF receipt</a></p>';echo '</section>';}
+  if($receipts){echo '<section class="panel"><h2>PayFast payment records</h2><p class="muted">Payment records are not VAT tax invoices. Sandbox payments are simulations.</p>';foreach($receipts as $receipt)echo '<p>'.esc((string)$receipt['invoice_number']).' · '.esc((string)$receipt['issued_at']).' · '.esc((string)$receipt['status']).' · <a href="/payfast/invoice?id='.(int)$receipt['id'].'">View original payment record</a> · <a href="/payfast/invoice.pdf?id='.(int)$receipt['id'].'">PDF receipt</a></p>';echo '</section>';}
   $available=cfg('PAID_BILLING_ENABLED','0')==='1'&&str_starts_with(cfg('STRIPE_SECRET_KEY'),'sk_')&&str_starts_with(cfg('STRIPE_WEBHOOK_SECRET'),'whsec_');
   if(!$available&&!pfEnabled())echo '<p class="flash">Paid subscriptions are not yet available. The payment gateway is awaiting configuration and verification.</p>';
   if($available){echo '<div class="billing-choices">';
