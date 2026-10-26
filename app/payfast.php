@@ -88,8 +88,13 @@ function pfCheckout():never{
   $lock=$pdo->prepare('SELECT id FROM users WHERE id=? FOR UPDATE');
   $lock->execute([$user['id']]);
   if(!$lock->fetchColumn())throw new DomainException('Account no longer exists.');
-  $pending=$pdo->prepare("SELECT id,plan,amount_cents FROM payfast_orders WHERE user_id=? AND mode=? AND status='pending' AND created_at>DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE) ORDER BY created_at DESC LIMIT 1");
-  $pending->execute([$user['id'],pfMode()]);$existing=$pending->fetch();
+  // A customer may have abandoned a different live package. Never allow
+  // that unpaid order to block checkout of the package they now selected.
+  // Reuse a recent same-package quote exactly (including its original ZAR
+  // amount) so FX refreshes cannot strand a pending live checkout.
+  $pending=$pdo->prepare("SELECT id,plan,amount_cents FROM payfast_orders WHERE user_id=? AND mode=? AND plan=? AND status='pending' AND created_at>DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE) ORDER BY created_at DESC LIMIT 1");
+  $pending->execute([$user['id'],pfMode(),$plan]);$existing=$pending->fetch();
+  if($existing && pfMode()==='live')$cents=(int)$existing['amount_cents'];
   $action=pfPendingAction($existing?:null,$plan,$cents,pfMode());
   if($action==='reuse'){
    $order=pfReusablePendingOrder($existing,$plan,$cents);
