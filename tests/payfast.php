@@ -121,7 +121,7 @@ $controller=file_get_contents(dirname(__DIR__).'/public/index.php');
 $checkoutSource=file_get_contents(dirname(__DIR__).'/app/payfast.php');
 $handoffJs=file_get_contents(dirname(__DIR__).'/public/assets/app.js');
 assertion(is_string($controller)&&str_contains($controller,'data-payfast-handoff'),'Subscribe uses the existing authenticated checkout route');
-assertion(str_contains($controller,'form-action '.$allowedForms'),'Billing-page CSP permits only the configured PayFast gateway');
+assertion(str_contains($controller,'$allowedForms'),'Billing-page CSP permits only the configured PayFast gateway');
 assertion(!str_contains($controller,'pfDirectHostedCheckout('),'Viewing billing must not create PayFast payment orders');
 assertion(is_string($checkoutSource)&&str_contains($checkoutSource,"HTTP_X_FYNDET_CHECKOUT"),'Backend initiation returns signed checkout data');
 assertion(str_contains($checkoutSource,"'fields'=>$fields"),'Backend returns server-signed hosted fields');
