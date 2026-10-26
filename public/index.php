@@ -25,7 +25,10 @@ if(PHP_SAPI!=='cli'){
  header('X-Content-Type-Options: nosniff');
  $GLOBALS['csp_nonce']=base64_encode(random_bytes(18));
  $billingCheckoutRoute=(parse_url((string)($_SERVER['REQUEST_URI']??'/'),PHP_URL_PATH)==='/fyndet/app/billing'||parse_url((string)($_SERVER['REQUEST_URI']??'/'),PHP_URL_PATH)==='/app/billing');
- $allowedForms=$billingCheckoutRoute?"'self' https://".((envLoad($root.'/.env')['PAYFAST_MODE']??'sandbox')==='live'?'www':'sandbox').".payfast.co.za":"'self'";
+ // PayFast responds to the signed form POST with a redirect to its hosted checkout.
+ // CSP form-action applies to redirects as well as the initial form destination.
+ // Permit only PayFast-owned HTTPS hosts so the browser can follow that hand-off.
+ $allowedForms=$billingCheckoutRoute?"'self' https://payfast.co.za https://*.payfast.co.za":"'self'";
  header('Content-Security-Policy: default-src \'self\'; img-src \'self\' data:; style-src \'self\' https://fonts.googleapis.com; font-src \'self\' https://fonts.gstatic.com; script-src \'self\' \'nonce-'. $GLOBALS['csp_nonce'] .'\'; object-src \'none\'; base-uri \'self\'; form-action '.$allowedForms);
 }
 function db():PDO {static $pdo=null;if(!$pdo){$dsn='mysql:host='.cfg('DB_HOST','localhost').';port='.cfg('DB_PORT','3306').';dbname='.cfg('DB_NAME').';charset=utf8mb4';$pdo=new PDO($dsn,cfg('DB_USER'),cfg('DB_PASS'),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);}return $pdo;}
@@ -102,7 +105,7 @@ function pageTop(string $title,bool $app=false):void {
    echo '<script type="application/ld+json" nonce="'.esc($GLOBALS['csp_nonce']??'').'">'.json_encode($faq,JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP).'</script>';
   }
  }
- echo '<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/style.css"><script defer src="/assets/app.js?v=payfast-direct-20261026c"></script></head><body>';
+ echo '<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/style.css"><script defer src="/assets/app.js?v=payfast-direct-20261026d"></script></head><body>';
 
  echo '<div class="site-shell"><header class="site-header"><div class="container header-in"><a class="brand" href="/" aria-label="FyndEt home"><span class="brand-mark"><span></span><span></span><span></span><span></span></span><span>fynd<span class="brand-accent">et</span><sup>®</sup></span></a><nav class="desktop-nav" aria-label="Primary"><a href="/#platform">Platform</a><a href="/how-it-works">How it works</a><a href="/pricing">Pricing</a><a href="/#faq">FAQs</a></nav><div class="nav-actions">';
  if($u) echo '<a class="text-link" href="/app">Dashboard</a><form method="post" action="/logout"><input type="hidden" name="_csrf" value="'.csrf().'"><button class="button button-small button-outline" type="submit">Sign out <span>↗</span></button></form>';
