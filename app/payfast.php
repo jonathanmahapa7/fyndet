@@ -73,12 +73,16 @@ function pfNotify():never{
   if($q->rowCount()===0){$db->commit();http_response_code(200);exit('Already processed');}
   if($state==='COMPLETE'){
    $q=$db->prepare("UPDATE payfast_orders SET status='complete',payment_id=? WHERE id=?");$q->execute([$payment,$order]);
+   $existingSub=$db->prepare('SELECT order_id,status,token FROM payfast_subscriptions WHERE user_id=? FOR UPDATE');$existingSub->execute([$item['user_id']]);$previous=$existingSub->fetch();
+   $cancelledOriginal=$previous&&$previous['status']==='cancelled'&&hash_equals((string)$previous['order_id'],$order);
    $q=$db->prepare("INSERT INTO payfast_subscriptions(user_id,order_id,token,plan,status,mode) VALUES(?,?,?,?,'active',?) ON DUPLICATE KEY UPDATE order_id=VALUES(order_id),token=COALESCE(VALUES(token),token),plan=VALUES(plan),status='active',mode=VALUES(mode)");
-   $token=trim((string)($fields['token']??''));$q->execute([$item['user_id'],$order,$token!==''?$token:null,$item['plan'],pfMode()]);
+   $token=trim((string)($fields['token']??''));
+   if(pfMode()==='live'&&$token===''&&empty($previous['token']))throw new RuntimeException('Missing recurring subscription token; retry notification');
+   if(!$cancelledOriginal)$q->execute([$item['user_id'],$order,$token!==''?$token:null,$item['plan'],pfMode()]);
    // Only validated LIVE notifications grant paid investigation entitlements.
-   if(pfMode()==='live'){$q=$db->prepare("UPDATE users SET plan=?,subscription_status='active' WHERE id=? AND (stripe_customer_id IS NULL OR stripe_customer_id='')");$q->execute([$item['plan'],$item['user_id']]);}
+   if(pfMode()==='live'&&!$cancelledOriginal){$q=$db->prepare("UPDATE users SET plan=?,subscription_status='active' WHERE id=? AND (stripe_customer_id IS NULL OR stripe_customer_id='')");$q->execute([$item['plan'],$item['user_id']]);}
    $q=$db->prepare("INSERT IGNORE INTO payfast_invoices(invoice_number,user_id,payment_id,order_id,amount_cents,currency,status) VALUES(?,?,?,?,?,'ZAR',?)");
-   $q->execute(['PF-'.strtoupper(substr($payment,0,40)),$item['user_id'],$payment,$order,$item['amount_cents'],pfMode()==='live'?'paid':'sandbox_paid']);
+   $q->execute(['PF-'.strtoupper(substr(hash('sha256',$payment),0,32)),$item['user_id'],$payment,$order,$item['amount_cents'],pfMode()==='live'?'paid':'sandbox_paid']);
   }elseif($state==='FAILED'||$state==='CANCELLED'){
    $q=$db->prepare('UPDATE payfast_orders SET status=?,payment_id=? WHERE id=? AND status!=\'complete\'');$q->execute([strtolower($state),$payment,$order]);
   }
