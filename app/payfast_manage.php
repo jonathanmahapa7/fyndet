@@ -34,12 +34,12 @@ function pfApiSubscriptionUpdateSignature(array $headers,array $body):string{
  return pfApiSignature(array_merge($headers,$body));
 }
 function pfApiUpdateAmount(string $token,int $amount):bool{
- if(pfMode()!=='sandbox'||!pfEnabled()||$amount<500||$amount>100000000||preg_match('/^[a-f0-9-]{36}$/iD',$token)!==1)throw new DomainException('Subscription update not permitted.');
+ if(!pfEnabled()||(pfMode()==='live'&&cfg('PAID_BILLING_ENABLED','0')!=='1')||$amount<500||$amount>100000000||preg_match('/^[a-f0-9-]{36}$/iD',$token)!==1)throw new DomainException('Subscription update not permitted.');
  $timestamp=gmdate('Y-m-d\\TH:i:s+00:00');
  $headers=['merchant-id'=>cfg('PAYFAST_MERCHANT_ID'),'version'=>'v1','timestamp'=>$timestamp];
  $body=['amount'=>(string)$amount];
  $signature=pfApiSubscriptionUpdateSignature($headers,$body);
- $url='https://api.payfast.co.za/subscriptions/'.$token.'/update?testing=true';
+ $url='https://api.payfast.co.za/subscriptions/'.$token.'/update'.(pfMode()==='sandbox'?'?testing=true':'');
  $h=curl_init($url);
  if($h===false)throw new RuntimeException('PayFast API unavailable.');
  curl_setopt_array($h,[CURLOPT_CUSTOMREQUEST=>'PATCH',CURLOPT_POSTFIELDS=>http_build_query($body,'','&',PHP_QUERY_RFC1738),CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>20,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_HTTPHEADER=>['merchant-id: '.$headers['merchant-id'],'version: v1','timestamp: '.$timestamp,'signature: '.$signature,'Content-Type: application/x-www-form-urlencoded']]);
