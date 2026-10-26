@@ -13,4 +13,5 @@ assertion(pfSignature($a,'testing')!==pfSignature($a,'different'),'Changing pass
 assertion(pfSignature($a,'testing')!==pfSignature(['merchant_id'=>'10000100','amount'=>'101.00','m_payment_id'=>'abc'],'testing'),'Changing payment amount changes signature');
 assertion(pfParameterString($a) === 'merchant_id=10000100&amount=100.00&m_payment_id=abc', 'Canonical PayFast server-validation payload preserves ordering');
 assertion(!str_contains(pfParameterString($a+['signature'=>'fake']),'signature='),'Server confirmation excludes signature field');
+assertion(pfItnParameterString(['m_payment_id'=>'123','name_first'=>'','signature'=>'abc'])==='m_payment_id=123&name_first=', 'PayFast ITN canonicalisation preserves empty fields before signature');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
