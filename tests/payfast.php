@@ -2,6 +2,7 @@
 declare(strict_types=1);
 if(PHP_SAPI!=='cli')exit(1);
 function cfg(string $name,string $default=''):string{return $default;}
+$path='/__payfast_contract_test__';
 require dirname(__DIR__).'/app/payfast.php';
 function assertion(bool $pass,string $message):void{if(!$pass){fwrite(STDERR,"FAIL: $message\n");exit(1);}echo "PASS: $message\n";}
 assertion(!pfEnabled(),'No merchant settings means PayFast disabled');
