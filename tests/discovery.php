@@ -20,6 +20,8 @@ $hibp=licensedBreachEvidence($email,['HIBP_ENABLED'=>'1','HIBP_API_KEY'=>'']);
 verify($hibp['state']==='source_unavailable','Unlicensed breach source is not falsely reported as no breaches');
 $git=publicCommitEvidence($email,['GITHUB_PUBLIC_COMMITS_ENABLED'=>'0']);
 verify($git['state']==='not_checked','Disabled public commits source is explicitly unqueried');
+$source=file_get_contents(dirname(__DIR__).'/app/providers.php');
+verify(str_contains($source,"if($token!=='')"),'GitHub public commit search does not require a paid API key');
 $all=fyndetCorrelate(['domain'=>$dns,'web'=>$web,'ct'=>$ct,'breaches'=>$hibp,'github'=>$git]);
 verify(isset($all['source_states']['source_unavailable'])&&$all['source_states']['source_unavailable']>=2,'Evidence coverage tracks unavailable sources');
 verify(str_contains($all['limitations'],'Not found != does not exist'),'Correlation communicates uncertainty');
