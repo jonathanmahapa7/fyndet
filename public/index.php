@@ -235,8 +235,8 @@ try {
      foreach($extended['sources'] as $sectionName=>$section){
        $state=(string)($section['state']??'not_checked');
        echo '<article class="evidence-item"><div class="report-title"><h4>'.esc(ucwords(str_replace('_',' ',$sectionName))).'</h4><span class="status">'.esc(strtoupper($state)).'</span></div><p class="muted">'.esc((string)($section['reason']??'')).'</p>';
-       if(!empty($section['posture']))echo '<p class="muted">Domain posture: '.esc(json_encode($section['posture'])).'</p>';
-       foreach(array_slice($section['items']??[],0,55) as $item){
+       if(!empty($section['posture'])){ $posture=$section['posture']; echo '<p class="muted">Mail routing: '.(!empty($posture['mx_published'])?'Published':'Not observed').' | SPF: '.esc((string)($posture['spf_policy']??'Unknown')).' | DMARC: '.esc((string)($posture['dmarc_policy']??'Unknown')).'</p>'; foreach(($posture['observations']??[]) as $note)echo '<p class="muted"><strong>'.esc((string)($note['title']??'Finding')).'</strong> — '.esc((string)($note['explanation']??'')).'</p>'; }
+       foreach(array_slice($section['items']??[],0,12) as $item){
          echo '<div class="source-observation"><strong>'.esc((string)($item['title']??$item['record_type']??$item['type']??'Observation')).'</strong>';
          echo '<p class="mono">'.esc((string)($item['summary']??$item['value']??'')).'</p>';
          if(!empty($item['source_url'])&&filter_var($item['source_url'],FILTER_VALIDATE_URL))echo '<a class="under-link" href="'.esc($item['source_url']).'" rel="noopener noreferrer" target="_blank">Inspect cited source ↗</a>';
