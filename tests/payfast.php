@@ -117,4 +117,8 @@ assertion(pfRenewalPlanResolution('starter','new_plan',$secondConfirmed,$firstAp
 assertion(pfRenewalAmountResolution(24858,24858,null,$firstApplied)==='reject','Stale original rate rejected after earlier upgrade');
 assertion(pfRenewalAmountResolution(24858,42000,null,$firstApplied)==='reject','Unexpected renewed amount rejected after upgrade');
 assertion(pfRenewalAmountResolution(24858,24858,null,null)==='existing_plan','Initial checkout rate remains accepted without changes');
+$checkoutSource=file_get_contents(dirname(__DIR__).'/app/payfast.php');
+assertion(is_string($checkoutSource)&&str_contains($checkoutSource,"\$GLOBALS['csp_nonce']"),'Hosted checkout shares nonce with the application security policy');
+assertion(is_string($checkoutSource)&&str_contains($checkoutSource,"header_remove('Content-Security-Policy')"),'Hosted checkout replaces the restrictive application form policy');
+assertion(is_string($checkoutSource)&&str_contains($checkoutSource,'HTMLFormElement.prototype.submit.call(f)'),'Hosted checkout uses native automatic POST');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
