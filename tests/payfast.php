@@ -43,4 +43,10 @@ assertion(pfPendingAction(['plan'=>'pro','amount_cents'=>41430],'starter',24858,
 $liveRejected=false;
 try{pfPendingAction(['plan'=>'starter','amount_cents'=>25000],'starter',24858,'live');}catch(DomainException $e){$liveRejected=true;}
 assertion($liveRejected,'Live pending checkout may not be replaced automatically');
+$hostedFields=['merchant_id'=>'10004002','merchant_key'=>'q1cd2rdny4a53','return_url'=>'https://example.com/return','amount'=>'248.58',...pfCheckoutSubscriptionFields(24858)];
+assertion(array_keys(pfCheckoutSubscriptionFields(24858))===['subscription_type','recurring_amount','frequency','cycles'],'Recurring fields follow PayFast hosted checkout signing order');
+assertion(pfSignature($hostedFields,'payfast')==='4efb7e372524c802836430a474d0ca0b','PayFast signature matches independent Python MD5 and URL encoding fixture');
+$wrongOrder=$hostedFields;unset($wrongOrder['recurring_amount'],$wrongOrder['frequency'],$wrongOrder['cycles']);
+$wrongOrder['frequency']='3';$wrongOrder['cycles']='0';$wrongOrder['recurring_amount']='248.58';
+assertion(pfSignature($wrongOrder,'payfast')!==pfSignature($hostedFields,'payfast'),'Recurring field order materially changes gateway signature');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
