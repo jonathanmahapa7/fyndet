@@ -39,9 +39,14 @@ jobs:
           test -f app/federated_search.php
           test -f app/certificates.php
           test -f app/monitoring.php
+          test -f app/payfast.php
+          test -f app/payfast_manage.php
+          test -f database/008_payfast_billing.sql
           test -f database/004_organisations_privacy.sql
       - name: Validate discovery coverage and disabled-source semantics
         run: php tests/discovery.php
+      - name: Validate PayFast payment safety contracts
+        run: php tests/payfast.php
       - name: Validate Composer project
         run: composer validate --no-check-publish
       - name: Ensure no committed environment secrets
