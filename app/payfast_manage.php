@@ -45,7 +45,8 @@ function pfApiUpdateAmount(string $token,int $amount):bool{
  curl_setopt_array($h,[CURLOPT_CUSTOMREQUEST=>'PATCH',CURLOPT_POSTFIELDS=>http_build_query($body,'','&',PHP_QUERY_RFC1738),CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>20,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_HTTPHEADER=>['merchant-id: '.$headers['merchant-id'],'version: v1','timestamp: '.$timestamp,'signature: '.$signature,'Content-Type: application/x-www-form-urlencoded']]);
  $response=curl_exec($h);$http=(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE);$error=curl_errno($h);curl_close($h);
  if($error!==0||!is_string($response))throw new RuntimeException('PayFast update transport failed.');
- // Provider update responses vary, so the follow-up fetch is authoritative.
+ if($http<200||$http>=300)throw new RuntimeException('PayFast did not accept the subscription update (HTTP '.$http.').');
+ // Confirm the provider state independently; only an active subscription at the agreed amount qualifies.
  [$status,$data]=pfApiCallSubscription($token,'fetch');
  return $status===200&&is_array($data)&&($data['status']??null)==='success'&&
   is_array($data['data']['response']??null)&&
