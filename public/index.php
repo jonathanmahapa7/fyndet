@@ -226,29 +226,20 @@ try {
    $id=(string)($_GET['id']??'');$q=db()->prepare('SELECT * FROM investigations WHERE id=? AND user_id=?');$q->execute([$id,$u['id']]);$report=$q->fetch();
    if(!$report){http_response_code(404);echo '<section class="panel"><h2>Report not found.</h2></section>';}
    else{echo '<section class="panel report-panel">';if(in_array($u['plan'],['starter','pro','business'],true)&&in_array($report['status'],['complete','partial'],true)){echo '<div class="report-actions"><span class="eyebrow">EXPORT OPTIONS</span><div><a class="button button-outline button-small" href="/app/reports/export?format=pdf&amp;id='.esc($id).'">PDF report ↗</a>';if(in_array($u['plan'],['pro','business'],true))echo '<a class="button button-outline button-small" href="/app/reports/export?format=csv&amp;id='.esc($id).'">CSV export ↗</a>';echo '</div></div>';}echo '<div class="report-title"><div><p class="eyebrow">INVESTIGATION / '.esc(substr($id,0,8)).'</p><h2>'.esc($report['target_email']).'</h2></div><span class="status">'.esc(strtoupper($report['status'])).'</span></div>';
-   if($report['result_json']){$result=json_decode($report['result_json'],true)?:[];echo '<p class="muted">Collected at '.esc($result['retrieved_at']??'').'. DNS records indicate infrastructure configuration, not the existence of online accounts.</p><div class="result-grid">';
-   foreach(($result['records']??[]) as $type=>$values){echo '<article class="result-card"><p class="eyebrow">'.esc($type).'</p>';if($values){foreach($values as $v)echo '<p class="mono">'.esc((string)$v).'</p>';}else echo '<p class="muted">No record observed in this lookup.</p>';echo '</article>';}
+   if($report['result_json']){$result=json_decode($report['result_json'],true)?:[]; $sources=$result['expanded_discovery']['sources']??[]; $isSelf=($result['subject_scope']??'')==='verified_registered_email_self_check'; $personal=[]; $inactive=0;
+   foreach($sources as $sourceName=>$source){if(in_array($sourceName,['domain_intelligence','mail_routing','mail_authentication','transport_security','web_infrastructure','certificate_transparency'],true))continue;if(in_array($source['state']??'',['not_checked','source_unavailable'],true)){$inactive++;continue;}foreach(($source['items']??[]) as $item){if(is_array($item))$personal[]=$item;}}
+   foreach(['public_references','breach_exposure'] as $key){$source=$result[$key]??[];if(in_array($source['state']??'',['not_checked','source_unavailable'],true)){$inactive++;continue;}foreach(($source['items']??[]) as $item){if(is_array($item))$personal[]=$item;}}
+   echo '<div class="evidence-section"><p class="eyebrow">INVESTIGATION SUMMARY</p><h3>'.($personal?'Address-specific evidence':'No address-specific findings verified').'</h3><p class="muted">Collected at '.esc((string)($result['retrieved_at']??'')).'. '.($isSelf?'Verified self-check.':'Public-information investigation.').' '.($personal?'The findings below are observations, not proof of identity or account ownership.':'Domain configuration alone cannot establish a mailbox, personal accounts, a data breach, or a digital footprint.').'</p>';
+   if(!$personal)echo '<p class="muted">No address-specific evidence was available from the sources actually checked. This does not mean the address has no public footprint. '.($inactive?'Some source integrations were not available during this investigation.':'').'</p>';
+   foreach(array_slice($personal,0,30) as $item){echo '<article class="evidence-item"><strong>'.esc((string)($item['title']??$item['name']??$item['repository']??'Public reference')).'</strong><p class="muted">'.esc((string)($item['summary']??$item['source']??'')).'</p>';if(!empty($item['source_url'])&&str_starts_with((string)$item['source_url'],'https://'))echo '<a class="under-link" href="'.esc($item['source_url']).'" rel="noopener noreferrer" target="_blank">Source reference ↗</a>';echo '</article>';}
    echo '</div>';
-   $extended=$result['expanded_discovery']??[];
-   if(!empty($extended['sources'])){
-     echo '<div class="evidence-section"><p class="eyebrow">SOURCE COVERAGE & PROVENANCE</p><h3>Expanded discovery</h3><p class="muted">Source observations are not proof that the address belongs to an account. Results only cover sources actually checked.</p>';
-     foreach($extended['sources'] as $sectionName=>$section){
-       $state=(string)($section['state']??'not_checked');
-       if($state==='not_checked'||$state==='source_unavailable')continue;
-       echo '<article class="evidence-item"><div class="report-title"><h4>'.esc(ucwords(str_replace('_',' ',$sectionName))).'</h4><span class="status">'.esc(strtoupper($state)).'</span></div><p class="muted">'.esc((string)($section['reason']??'')).'</p>';
-       if(!empty($section['posture'])){ $posture=$section['posture']; echo '<p class="muted">Mail routing: '.(!empty($posture['mx_published'])?'Published':'Not observed').' | SPF: '.esc((string)($posture['spf_policy']??'Unknown')).' | DMARC: '.esc((string)($posture['dmarc_policy']??'Unknown')).'</p>'; foreach(($posture['observations']??[]) as $note)echo '<p class="muted"><strong>'.esc((string)($note['title']??'Finding')).'</strong> — '.esc((string)($note['explanation']??'')).'</p>'; }
-       foreach(array_slice($section['items']??[],0,12) as $item){
-         echo '<div class="source-observation"><strong>'.esc((string)($item['title']??$item['record_type']??$item['type']??'Observation')).'</strong>';
-         echo '<p class="mono">'.esc((string)($item['summary']??$item['value']??'')).'</p>';
-         if(!empty($item['source_url'])&&filter_var($item['source_url'],FILTER_VALIDATE_URL))echo '<a class="under-link" href="'.esc($item['source_url']).'" rel="noopener noreferrer" target="_blank">Inspect cited source ↗</a>';
-         echo '</div>';
-       }
-       echo '</article>';
-     }
-     echo '</div>';
-   }
-   if(!empty($result['evidence_summary']))echo '<p class="muted">Evidence observations: '.(int)($result['evidence_summary']['observations']??0).'. '.esc((string)($result['evidence_summary']['limitations']??'')).'</p>';
-   foreach(['public_references'=>'Public footprint references','breach_exposure'=>'Breach exposure metadata'] as $key=>$heading){
+   $domainEvidence=$sources['domain_intelligence']??[];
+   $posture=$domainEvidence['posture']??[];
+   echo '<details class="evidence-section technical-details"><summary><strong>Technical domain diagnostics</strong> <span class="muted">Optional infrastructure information</span></summary><p class="muted">These records belong to the email provider domain, not necessarily the person being investigated.</p>';
+   if($posture){echo '<p class="muted">Mail routing: '.(!empty($posture['mx_published'])?'Published':'Not observed').' | SPF: '.esc((string)($posture['spf_policy']??'Unknown')).' | DMARC: '.esc((string)($posture['dmarc_policy']??'Unknown')).'</p>';foreach(($posture['observations']??[]) as $note)echo '<p class="muted"><strong>'.esc((string)($note['title']??'Domain finding')).'</strong>: '.esc((string)($note['explanation']??'')).'</p>';}
+   foreach(($result['records']??[]) as $type=>$values){echo '<p class="muted"><strong>'.esc((string)$type).':</strong> '.count((array)$values).' records observed</p>';}
+   echo '</details>';
+      foreach(['public_references'=>'Public footprint references','breach_exposure'=>'Breach exposure metadata'] as $key=>$heading){
      $data=$result[$key]??['state'=>'not_checked','reason'=>'Not enabled in this release','items'=>[]];
      if(in_array((string)($data['state']??''),['not_checked','source_unavailable'],true))continue;
      echo '<div class="evidence-section"><div class="report-title"><h3>'.esc($heading).'</h3><span class="status">'.esc(strtoupper((string)($data['state']??'unknown'))).'</span></div><p class="muted">'.esc((string)($data['reason']??'')).'</p>';
