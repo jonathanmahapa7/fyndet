@@ -72,6 +72,8 @@ if($path==='/payfast/cancel'&&$_SERVER['REQUEST_METHOD']==='POST'){
  if(!pfApiCancel((string)$subscription['token']))throw new DomainException('PayFast did not confirm cancellation. No local change was made.');
  $db=db();$db->beginTransaction();
  try{$q=$db->prepare("UPDATE payfast_subscriptions SET status='cancelled' WHERE user_id=? AND mode=?");$q->execute([$user['id'],pfMode()]);
+ $q=$db->prepare("UPDATE payfast_plan_changes SET status='cancelled' WHERE user_id=? AND status IN ('awaiting_review','updating','provider_confirmed')");
+ $q->execute([$user['id']]);
  if(pfMode()==='live'){$q=$db->prepare("UPDATE users SET plan='free',subscription_status='cancelled' WHERE id=? AND (stripe_customer_id IS NULL OR stripe_customer_id='')");$q->execute([$user['id']]);}
  auditEvent((int)$user['id'],'billing.payfast.cancelled',pfMode());$db->commit();}catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
  flash('PayFast confirmed cancellation. Your subscription is no longer active.');go('app/billing');
