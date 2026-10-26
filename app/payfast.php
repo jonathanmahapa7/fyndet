@@ -124,6 +124,16 @@ function pfServerValidation(string $body):bool{
  $answer=curl_exec($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);curl_close($ch);
  return $status===200&&is_string($answer)&&trim($answer)==='VALID';
 }
+/** Renewal and subscription lifecycle guards. No automatic grants on failed renewals. */
+function pfRenewalPolicy(array $order,?array $subscription,string $status,string $paymentId,string $token):string{
+ if(($order['status']??'')==='superseded')return 'reject';
+ if($status!=='COMPLETE')return 'record_only';
+ if($subscription && ($subscription['status']??'')==='cancelled' && ($subscription['order_id']??'')===($order['id']??''))return 'record_only';
+ if($subscription && ($subscription['mode']??'')!==($order['mode']??''))return 'reject';
+ if($subscription && ($subscription['order_id']??'')!==($order['id']??'') && ($subscription['status']??'')!=='cancelled')return 'reject';
+ if($subscription && !empty($subscription['token']) && $token!=='' && !hash_equals((string)$subscription['token'],$token))return 'reject';
+ return 'activate';
+}
 function pfNotify():never{
  if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit;}
  if(!pfEnabled()){http_response_code(503);exit('PayFast disabled');}
@@ -150,19 +160,24 @@ function pfNotify():never{
   if($previous && $previous['status']!=='cancelled' && ($previous['mode']!==$item['mode'] || !hash_equals((string)$previous['order_id'],$order))){
    $db->rollBack();http_response_code(409);exit('Subscription order mismatch');
   }
-  // Renewals use new payment IDs against the original merchant order reference.
-  // Every event is de-duplicated separately in payfast_notifications.
-  $q=$db->prepare('INSERT IGNORE INTO payfast_notifications(payment_id,payment_status,order_id) VALUES(?,?,?)');$q->execute([$payment,$state,$order]);
+  // A payment ID must never be silently accepted against another order.
+  $dup=$db->prepare('SELECT order_id FROM payfast_notifications WHERE payment_id=? AND payment_status=?');
+  $dup->execute([$payment,$state]);$dupOrder=$dup->fetchColumn();
+  if($dupOrder!==false){$db->rollBack();if(!hash_equals((string)$dupOrder,$order)){http_response_code(409);exit('Payment reference mismatch');}http_response_code(200);exit('Already processed');}
+  $token=trim((string)($fields['token']??''));
+  $policy=pfRenewalPolicy($item,$previous?:null,$state,$payment,$token);
+  if($policy==='reject'){$db->rollBack();http_response_code(409);exit('Subscription state mismatch');}
+  // Validated renewals create new payment records; the first payment remains the order reference.
+  $q=$db->prepare('INSERT INTO payfast_notifications(payment_id,payment_status,order_id) VALUES(?,?,?)');$q->execute([$payment,$state,$order]);
   if($q->rowCount()===0){$db->commit();http_response_code(200);exit('Already processed');}
   if($state==='COMPLETE'){
-   $q=$db->prepare("UPDATE payfast_orders SET status='complete',payment_id=? WHERE id=?");$q->execute([$payment,$order]);
+   $q=$db->prepare("UPDATE payfast_orders SET status='complete',payment_id=COALESCE(payment_id,?) WHERE id=?");$q->execute([$payment,$order]);
     $cancelledOriginal=$previous&&$previous['status']==='cancelled'&&hash_equals((string)$previous['order_id'],$order);
    $q=$db->prepare("INSERT INTO payfast_subscriptions(user_id,order_id,token,plan,status,mode) VALUES(?,?,?,?,'active',?) ON DUPLICATE KEY UPDATE order_id=VALUES(order_id),token=COALESCE(VALUES(token),token),plan=VALUES(plan),status='active',mode=VALUES(mode)");
-   $token=trim((string)($fields['token']??''));
    if(pfMode()==='live'&&$token===''&&empty($previous['token']))throw new RuntimeException('Missing recurring subscription token; retry notification');
-   if(!$cancelledOriginal)$q->execute([$item['user_id'],$order,$token!==''?$token:null,$item['plan'],pfMode()]);
+   if($policy==='activate')$q->execute([$item['user_id'],$order,$token!==''?$token:null,$item['plan'],pfMode()]);
    // Only validated LIVE notifications grant paid investigation entitlements.
-   if(pfMode()==='live'&&!$cancelledOriginal){$q=$db->prepare("UPDATE users SET plan=?,subscription_status='active' WHERE id=? AND (stripe_customer_id IS NULL OR stripe_customer_id='')");$q->execute([$item['plan'],$item['user_id']]);}
+   if(pfMode()==='live'&&$policy==='activate'){$q=$db->prepare("UPDATE users SET plan=?,subscription_status='active' WHERE id=? AND (stripe_customer_id IS NULL OR stripe_customer_id='')");$q->execute([$item['plan'],$item['user_id']]);}
    $q=$db->prepare("INSERT IGNORE INTO payfast_invoices(invoice_number,user_id,payment_id,order_id,amount_cents,currency,status) VALUES(?,?,?,?,?,'ZAR',?)");
    $q->execute(['PF-'.strtoupper(substr(hash('sha256',$payment),0,32)),$item['user_id'],$payment,$order,$item['amount_cents'],pfMode()==='live'?'paid':'sandbox_paid']);
   }elseif($state==='FAILED'||$state==='CANCELLED'){
