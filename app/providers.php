@@ -24,12 +24,15 @@ function safeGet(string $url,array $headers=[]):array {
 }
 function publicCommitEvidence(string $email,array $env):array {
  if(($env['GITHUB_PUBLIC_COMMITS_ENABLED']??'0')!=='1')return ['state'=>'not_checked','reason'=>'GitHub public commit adapter disabled','items'=>[]];
- $token=$env['GITHUB_TOKEN']??'';
- if(!str_starts_with($token,'github_pat_')&&!str_starts_with($token,'ghp_'))return ['state'=>'source_unavailable','reason'=>'Approved GitHub API token is not configured','items'=>[]];
+ $token=trim((string)($env['GITHUB_TOKEN']??''));
  $query='author-email:"'.$email.'"';
- $headers=['Accept: application/vnd.github+json','Authorization: Bearer '.$token,'X-GitHub-Api-Version: 2022-11-28'];
+ $headers=['Accept: application/vnd.github+json','X-GitHub-Api-Version: 2022-11-28'];
+ if($token!==''){
+  if(!str_starts_with($token,'github_pat_')&&!str_starts_with($token,'ghp_'))return ['state'=>'source_unavailable','reason'=>'Unsupported optional GitHub token format','items'=>[]];
+  $headers[]='Authorization: Bearer '.$token;
+ }
  $res=safeGet('https://api.github.com/search/commits?per_page=10&q='.rawurlencode($query),$headers);
- if($res['status']!==200||!is_array($res['data']))return ['state'=>'source_unavailable','reason'=>'GitHub search unavailable or rate limited','items'=>[]];
+ if($res['status']!==200||!is_array($res['data']))return ['state'=>'source_unavailable','reason'=>'GitHub public commit search returned HTTP '.(int)$res['status'].'; results unavailable, not evidence of absence','items'=>[]];
  $items=[];
  foreach(($res['data']['items']??[]) as $entry){
   if(!is_array($entry))continue;
