@@ -27,5 +27,8 @@ if($path==='/admin'){
  foreach($requests as $r){
  echo '<article class="evidence-item"><p class="eyebrow">'.esc($r['request_type']).' / '.esc($r['status']).'</p><h3>'.esc($r['email']).'</h3><p>'.esc($r['details']).'</p><form class="form-stack" method="post" action="/admin/privacy/resolve"><input type="hidden" name="_csrf" value="'.csrf().'"><input type="hidden" name="id" value="'.(int)$r['id'].'"><label>Review outcome<select name="status"><option value="in_review">In review</option><option value="resolved">Resolved</option><option value="rejected">Rejected (reason required)</option></select></label><label>Resolution note<textarea name="note" required minlength="10" maxlength="1500"></textarea></label><button class="button button-accent">Save review ↗</button></form></article>';
  }
- echo '</section></main>';pageEnd();exit;
+ echo '</section><section class="panel" style="margin-top:18px"><h2>Customers &amp; subscription overview</h2><p class="muted">Live account overview. Paid plans remain controlled by the configured billing provider; no subscription edits are applied here.</p><div class="table-scroll"><table><thead><tr><th>Customer</th><th>Plan</th><th>Billing status</th><th>Joined</th></tr></thead><tbody>';
+ $customers=db()->query('SELECT email,name,plan,subscription_status,created_at FROM users ORDER BY id DESC LIMIT 50')->fetchAll();
+ foreach($customers as $account)echo '<tr><td>'.esc((string)$account['email']).'</td><td>'.esc((string)$account['plan']).'</td><td>'.esc((string)$account['subscription_status']).'</td><td>'.esc((string)$account['created_at']).'</td></tr>';
+ echo '</tbody></table></div></section></main>';pageEnd();exit;
 }
