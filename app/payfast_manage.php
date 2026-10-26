@@ -17,7 +17,7 @@ function pfApiCallSubscription(string $token,string $action,string $method='GET'
  if(!pfEnabled()||!preg_match('/^[a-f0-9-]{36}$/iD',$token))throw new DomainException('Invalid sandbox or subscription.');
  if(!in_array($action,['fetch','cancel'],true)||!in_array($method,['GET','PUT'],true))throw new DomainException('Unsupported PayFast action.');
  if(!function_exists('curl_init'))throw new RuntimeException('cURL unavailable.');
- $timestamp=gmdate('Y-m-d\\TH:i:s+00:00');
+ $timestamp=gmdate('Y-m-d\TH:i:s+00:00');
  $headers=['merchant-id'=>cfg('PAYFAST_MERCHANT_ID'),'version'=>'v1','timestamp'=>$timestamp];
  $signature=pfApiSignature($headers);
  $url='https://api.payfast.co.za/subscriptions/'.$token.'/'.$action.(pfMode()==='sandbox'?'?testing=true':'');
