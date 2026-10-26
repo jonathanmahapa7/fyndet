@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 /** Signed PayFast recurring cancellation and customer invoice records. */
+/** Billing routes load before app/workspace.php: audit locally, not via its later helper. */
+function pfBillingAuditEvent(int $userId,string $event,?string $subject=null):void{
+ $q=db()->prepare('INSERT INTO audit_events(actor_user_id,organisation_id,event_type,subject_ref) VALUES(?,NULL,?,?)');
+ $q->execute([$userId,$event,$subject]);
+}
 function pfApiSignature(array $values):string{
  $values['passphrase']=cfg('PAYFAST_PASSPHRASE');
  ksort($values,SORT_STRING);
@@ -75,7 +80,7 @@ if($path==='/payfast/cancel'&&$_SERVER['REQUEST_METHOD']==='POST'){
  $q=$db->prepare("UPDATE payfast_plan_changes SET status='cancelled' WHERE user_id=? AND status IN ('awaiting_review','updating','provider_confirmed')");
  $q->execute([$user['id']]);
  if(pfMode()==='live'){$q=$db->prepare("UPDATE users SET plan='free',subscription_status='cancelled' WHERE id=? AND (stripe_customer_id IS NULL OR stripe_customer_id='')");$q->execute([$user['id']]);}
- auditEvent((int)$user['id'],'billing.payfast.cancelled',pfMode());$db->commit();}catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
+ pfBillingAuditEvent((int)$user['id'],'billing.payfast.cancelled',pfMode());$db->commit();}catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
  flash('PayFast confirmed cancellation. Your subscription is no longer active.');go('app/billing');
 }
 if($path==='/payfast/invoice.pdf'){
