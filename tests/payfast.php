@@ -18,4 +18,8 @@ assertion(pfItnParameterString(['m_payment_id'=>'123','name_first'=>'','signatur
 foreach (['250.00'=>25000,'415.00'=>41500,'550.00'=>55000,'0.00'=>0] as $gross=>$cents)assertion(pfGrossCents($gross)===$cents,'Exact amount parsing '.$gross);
 foreach (['250','250.0','250.001','2.5e2','-250.00','250.00x','0250.00','999999999.00'] as $invalid)assertion(pfGrossCents($invalid)===null,'Malformed amount rejected: '.$invalid);
 assertion(pfGrossCents(['250.00'])===null,'Array amount rejected');
+assertion(str_contains(pfCheckoutCsp('sandbox'),'form-action https://sandbox.payfast.co.za'),'Sandbox checkout CSP permits sandbox PayFast form');
+assertion(!str_contains(pfCheckoutCsp('sandbox'),'www.payfast.co.za'),'Sandbox checkout CSP excludes live gateway');
+assertion(str_contains(pfCheckoutCsp('live'),'form-action https://www.payfast.co.za'),'Live checkout CSP permits live gateway');
+assertion(!str_contains(pfCheckoutCsp('live'),'sandbox.payfast.co.za'),'Live checkout CSP excludes sandbox gateway');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
