@@ -29,7 +29,7 @@ try{
   $events=(int)$o['completed_events'];$receipts=(int)$o['receipts'];
   $renewals=max(0,$events-1);$renewalCount+=$renewals;
   // Re-check amount and notification correspondence per independent payment ID.
-  $check=$db->prepare("SELECT COUNT(*) FROM payfast_invoices i LEFT JOIN payfast_notifications n ON n.order_id=i.order_id AND n.payment_id=i.payment_id AND n.payment_status='COMPLETE' WHERE i.order_id=? AND (i.amount_cents<>? OR i.currency<>'ZAR' OR n.id IS NULL)");
+  $check=$db->prepare("SELECT COUNT(*) FROM payfast_invoices i LEFT JOIN payfast_notifications n ON n.order_id=i.order_id AND n.payment_id=i.payment_id AND n.payment_status='COMPLETE' WHERE i.order_id=? AND (i.currency<>'ZAR' OR n.id IS NULL OR (i.amount_cents<>? AND NOT EXISTS (SELECT 1 FROM payfast_plan_changes c WHERE c.order_id=i.order_id AND c.quoted_zar_cents=i.amount_cents AND c.status IN ('provider_confirmed','applied'))))");
   $check->execute([$o['id'],$o['amount_cents']]);
   $bad=(int)$check->fetchColumn();
   if($bad!==0||$receipts!==$events)$exceptions++;
