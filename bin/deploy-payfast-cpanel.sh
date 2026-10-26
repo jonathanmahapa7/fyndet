@@ -13,6 +13,7 @@ test -x "$PHP"
 test -f "$APP/.env"
 test -f "$WEB/.fyndet-site-marker"
 test -f "$WEB/index.php"
+test -f "$APP/public/assets/app.js"
 test -f "$APP/app/payfast.php"
 test -f "$APP/app/payfast_manage.php"
 test -f "$APP/database/008_payfast_billing.sql"
@@ -32,6 +33,7 @@ BACKUP="$APP/var/payfast-release-$(date -u +%Y%m%dT%H%M%SZ)"
 install -d -m 700 -o "$OWNER" -g "$OWNER" "$BACKUP"
 cp -a "$APP/.env" "$BACKUP/.env"
 cp -a "$WEB/index.php" "$BACKUP/index.php"
+if test -f "$WEB/assets/app.js"; then cp -a "$WEB/assets/app.js" "$BACKUP/app.js"; fi
 echo "Backup: $BACKUP"
 
 echo "===== APPLY ADDITIVE DATABASE MIGRATION ====="
@@ -42,7 +44,10 @@ runuser -u "$OWNER" -- "$PHP" "$APP/bin/preflight-cpanel.php"
 
 echo "===== ACTIVATE WEB ENTRY POINT ====="
 install -m 644 -o "$OWNER" -g "$OWNER" "$APP/public/index.php" "$WEB/index.php"
+install -d -m 755 -o "$OWNER" -g "$OWNER" "$WEB/assets"
+install -m 644 -o "$OWNER" -g "$OWNER" "$APP/public/assets/app.js" "$WEB/assets/app.js"
 "$PHP" -l "$WEB/index.php"
+cmp "$APP/public/assets/app.js" "$WEB/assets/app.js"
 
 echo "===== SMOKE ====="
 FAIL=0
@@ -60,9 +65,13 @@ test "$PRIVATE" = 403 -o "$PRIVATE" = 404 || FAIL=1
 NOTIFY="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "$BASE/payfast/notify")"
 echo "PayFast ITN GET rejected: HTTP $NOTIFY"
 test "$NOTIFY" = 405 || FAIL=1
+ASSET_CODE="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "$BASE/assets/app.js")"
+echo "PayFast handoff JS: HTTP $ASSET_CODE"
+test "$ASSET_CODE" = 200 || FAIL=1
 if test "$FAIL" != 0;then
  install -m 644 -o "$OWNER" -g "$OWNER" "$BACKUP/index.php" "$WEB/index.php"
- echo "FAILED: Old public entry point restored; additive PayFast tables remain."
+ if test -f "$BACKUP/app.js"; then install -m 644 -o "$OWNER" -g "$OWNER" "$BACKUP/app.js" "$WEB/assets/app.js"; fi
+ echo "FAILED: Previous public entry point and available handoff JS backup restored; additive PayFast tables remain."
  exit 1
 fi
 
