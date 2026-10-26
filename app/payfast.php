@@ -17,6 +17,13 @@ function pfParameterString(array $fields):string{
 function pfSignature(array $fields,string $passphrase):string{
  return md5(pfParameterString($fields).'&passphrase='.urlencode(trim($passphrase)));
 }
+function pfGrossCents(mixed $value):?int{
+ if(!is_string($value)&&!is_int($value))return null;
+ $amount=(string)$value;
+ if(!preg_match('/^(?:0|[1-9][0-9]{0,7})\\.[0-9]{2}$/D',$amount))return null;
+ [$rand,$cent]=explode('.',$amount,2);
+ return ((int)$rand)*100+(int)$cent;
+}
 function pfItnParameterString(array $fields):string{
  $parts=[];
  foreach($fields as $key=>$value){
@@ -74,15 +81,21 @@ function pfNotify():never{
  $db=db();$db->beginTransaction();
  try {
   $q=$db->prepare('SELECT id,user_id,plan,amount_cents,mode,status,payment_id FROM payfast_orders WHERE id=? FOR UPDATE');$q->execute([$order]);$item=$q->fetch();
-  if(!$item||$item['mode']!==pfMode()||!hash_equals(number_format((int)$item['amount_cents']/100,2,'.',''),number_format((float)($fields['amount_gross']??-1),2,'.',''))){$db->rollBack();http_response_code(400);exit('Order mismatch');}
+  if(!$item||$item['mode']!==pfMode()||pfGrossCents($fields['amount_gross']??null)!==(int)$item['amount_cents']){$db->rollBack();http_response_code(400);exit('Order mismatch');}
+  // Lock the user's subscription before recording the event. Never allow an older
+  // merchant order or an old sandbox subscription to replace a newer subscription.
+  $existingSub=$db->prepare('SELECT order_id,status,token,mode FROM payfast_subscriptions WHERE user_id=? FOR UPDATE');
+  $existingSub->execute([$item['user_id']]);$previous=$existingSub->fetch();
+  if($previous && ($previous['mode']!==$item['mode'] || !hash_equals((string)$previous['order_id'],$order))){
+   $db->rollBack();http_response_code(409);exit('Subscription order mismatch');
+  }
   // Renewals use new payment IDs against the original merchant order reference.
   // Every event is de-duplicated separately in payfast_notifications.
   $q=$db->prepare('INSERT IGNORE INTO payfast_notifications(payment_id,payment_status,order_id) VALUES(?,?,?)');$q->execute([$payment,$state,$order]);
   if($q->rowCount()===0){$db->commit();http_response_code(200);exit('Already processed');}
   if($state==='COMPLETE'){
    $q=$db->prepare("UPDATE payfast_orders SET status='complete',payment_id=? WHERE id=?");$q->execute([$payment,$order]);
-   $existingSub=$db->prepare('SELECT order_id,status,token FROM payfast_subscriptions WHERE user_id=? FOR UPDATE');$existingSub->execute([$item['user_id']]);$previous=$existingSub->fetch();
-   $cancelledOriginal=$previous&&$previous['status']==='cancelled'&&hash_equals((string)$previous['order_id'],$order);
+    $cancelledOriginal=$previous&&$previous['status']==='cancelled'&&hash_equals((string)$previous['order_id'],$order);
    $q=$db->prepare("INSERT INTO payfast_subscriptions(user_id,order_id,token,plan,status,mode) VALUES(?,?,?,?,'active',?) ON DUPLICATE KEY UPDATE order_id=VALUES(order_id),token=COALESCE(VALUES(token),token),plan=VALUES(plan),status='active',mode=VALUES(mode)");
    $token=trim((string)($fields['token']??''));
    if(pfMode()==='live'&&$token===''&&empty($previous['token']))throw new RuntimeException('Missing recurring subscription token; retry notification');
@@ -92,6 +105,8 @@ function pfNotify():never{
    $q=$db->prepare("INSERT IGNORE INTO payfast_invoices(invoice_number,user_id,payment_id,order_id,amount_cents,currency,status) VALUES(?,?,?,?,?,'ZAR',?)");
    $q->execute(['PF-'.strtoupper(substr(hash('sha256',$payment),0,32)),$item['user_id'],$payment,$order,$item['amount_cents'],pfMode()==='live'?'paid':'sandbox_paid']);
   }elseif($state==='FAILED'||$state==='CANCELLED'){
+   // Failure of a renewal is an exception requiring reconciliation. Do not
+   // automatically revoke an already-paid term without verified period data.
    $q=$db->prepare('UPDATE payfast_orders SET status=?,payment_id=? WHERE id=? AND status!=\'complete\'');$q->execute([strtolower($state),$payment,$order]);
   }
   $db->commit();http_response_code(200);exit('OK');
