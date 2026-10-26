@@ -5,11 +5,13 @@ require dirname(__DIR__).'/app/discovery.php';
 require dirname(__DIR__).'/app/certificates.php';
 require dirname(__DIR__).'/app/providers.php';
 require dirname(__DIR__).'/app/gravatar.php';
+require dirname(__DIR__).'/app/crossref.php';
 require dirname(__DIR__).'/app/federated_search.php';
 function verify(bool $valid,string $name):void{if(!$valid){fwrite(STDERR,"FAIL: $name\n");exit(1);}echo "PASS: $name\n";}
 $email='qa@example.com';
 verify(hash('sha256',strtolower(trim('QA@EXAMPLE.COM')))===hash('sha256',$email),'Exact profile key is derived from normalised email');
 verify(fyndetGravatarEvidence('invalid-address')['state']==='invalid','Public profile adapter validates email before network requests');
+verify(fyndetCrossrefEvidence('invalid-address')['state']==='invalid','Scholarly source rejects invalid email before network calls');
 $dns=fyndetDnsIntelligence($email);
 verify(in_array($dns['state'],['observed','not_found'],true),'Domain DNS query returns an evidence state');
 verify(is_array($dns['posture']??null),'Domain email-security posture is recorded');
