@@ -121,6 +121,7 @@ try {
  require $root.'/app/billing.php';
  require $root.'/app/payfast.php';
  require $root.'/app/payfast_manage.php';
+ require $root.'/app/payfast_plan_changes.php';
  require $root.'/app/report_export.php';
  require $root.'/app/workspace.php';
  require $root.'/app/administration.php';
@@ -227,6 +228,7 @@ try {
   if(pfEnabled() && pfAmount('starter')<500)echo '<p class="flash">Checkout is temporarily unavailable while the payment quote is refreshed. Please try again shortly.</p>';
   $inv=db()->prepare('SELECT id,invoice_number,amount_cents,currency,status,issued_at FROM payfast_invoices WHERE user_id=? ORDER BY issued_at DESC LIMIT 30');$inv->execute([$u['id']]);$receipts=$inv->fetchAll();
   if(pfEnabled()){$subscriptionQuery=db()->prepare('SELECT token,status FROM payfast_subscriptions WHERE user_id=? AND mode=?');$subscriptionQuery->execute([$u['id'],pfMode()]);$currentPf=$subscriptionQuery->fetch();if($currentPf&&$currentPf['status']==='active'&&!empty($currentPf['token']))echo '<section class="panel"><h2>PayFast subscription management</h2><p>PayFast confirmed an active '.esc(pfMode()).' subscription.</p><form method="post" action="/payfast/cancel"><input type="hidden" name="_csrf" value="'.csrf().'"><button class="button button-outline" >Cancel subscription</button></form></section>';}
+  pfRenderPlanChangePanel($u);
   if($receipts){echo '<section class="panel"><h2>PayFast payment records</h2><p class="muted">Payment records are not VAT tax invoices. Sandbox payments are simulations.</p>';foreach($receipts as $receipt)echo '<p>'.esc((string)$receipt['invoice_number']).' · '.esc((string)$receipt['issued_at']).' · '.esc((string)$receipt['status']).' · <a href="/payfast/invoice?id='.(int)$receipt['id'].'">View original payment record</a> · <a href="/payfast/invoice.pdf?id='.(int)$receipt['id'].'">PDF receipt</a></p>';echo '</section>';}
   $available=cfg('PAID_BILLING_ENABLED','0')==='1'&&str_starts_with(cfg('STRIPE_SECRET_KEY'),'sk_')&&str_starts_with(cfg('STRIPE_WEBHOOK_SECRET'),'whsec_');
   if(!$available&&!pfEnabled())echo '<p class="flash">Paid subscriptions are not yet available. The payment gateway is awaiting configuration and verification.</p>';
