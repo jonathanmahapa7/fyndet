@@ -50,7 +50,7 @@ $id=$m[1];
 exec(escapeshellarg(PHP_BINARY).' '.escapeshellarg(dirname(__DIR__).'/bin/process-investigations.php'),$output,$exit);
 check($exit===0,'Cron-compatible CLI worker executes successfully');
 [$status,$body]=request('/app/report?id='.$id);
-check($status===200&&str_contains($body,'MX')&&str_contains($body,'Public footprint references'),'Completed report displays source-labelled findings');
+check($status===200&&str_contains($body,'INVESTIGATION SUMMARY')&&str_contains($body,'Technical domain diagnostics'),'Completed report prioritises email-specific findings and collapses DNS detail');
 [$status]=request('/app/reports/export?format=pdf&id='.$id);
 check($status===422,'Free-tier paid export is denied server-side');
 $event=['id'=>'evt_integration_pro_001','type'=>'customer.subscription.updated','data'=>['object'=>['customer'=>'cus_integration_001','metadata'=>['user_id'=>'1'],'items'=>['data'=>[['price'=>['id'=>'price_integration_pro']]]],'status'=>'active']]];
