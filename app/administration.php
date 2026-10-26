@@ -7,6 +7,7 @@ function platformAdmin():array {
  if((int)$authority['totp_enabled']!==1){http_response_code(403);pageTop('Security requirement');echo '<main class="section container"><h1>Administrator MFA required</h1><p>Enable two-factor authentication before accessing sensitive operations.</p><a class="button button-accent" href="/app/security">Open security settings ↗</a></main>';pageEnd();exit;}
  return $u;
 }
+require_once __DIR__.'/admin_plans.php';
 if($path==='/admin/privacy/resolve'&&$_SERVER['REQUEST_METHOD']==='POST'){
  verifyCsrf();$u=platformAdmin();$id=(int)($_POST['id']??0);$status=(string)($_POST['status']??'');$note=trim((string)($_POST['note']??''));
  if($id<1||!in_array($status,['in_review','resolved','rejected'],true)||mb_strlen($note)<10||mb_strlen($note)>1500)throw new DomainException('Invalid review action. Provide a meaningful explanation.');
@@ -30,5 +31,5 @@ if($path==='/admin'){
  echo '</section><section class="panel" style="margin-top:18px"><h2>Customers &amp; subscription overview</h2><p class="muted">Live account overview. Paid plans remain controlled by the configured billing provider; no subscription edits are applied here.</p><div class="table-scroll"><table><thead><tr><th>Customer</th><th>Plan</th><th>Billing status</th><th>Joined</th></tr></thead><tbody>';
  $customers=db()->query('SELECT email,name,plan,subscription_status,created_at FROM users ORDER BY id DESC LIMIT 50')->fetchAll();
  foreach($customers as $account)echo '<tr><td>'.esc((string)$account['email']).'</td><td>'.esc((string)$account['plan']).'</td><td>'.esc((string)$account['subscription_status']).'</td><td>'.esc((string)$account['created_at']).'</td></tr>';
- echo '</tbody></table></div></section></main>';pageEnd();exit;
+ echo '</tbody></table></div></section>';fyndetAdminUsers($u);echo '</main>';pageEnd();exit;
 }
