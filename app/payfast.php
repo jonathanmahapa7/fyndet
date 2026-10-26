@@ -135,6 +135,10 @@ function pfRenewalPolicy(array $order,?array $subscription,string $status,string
  return 'activate';
 }
 /** Preserve original checkout while accepting only explicit provider-confirmed change quotes. */
+function pfReceiptPlan(string $plan):string{
+ if(!in_array($plan,['starter','pro','business'],true))throw new DomainException('Invalid receipt plan.');
+ return $plan;
+}
 function pfEffectivePlanForRenewal(string $original,string $amountDecision,?array $change):string{
  if($amountDecision==='changed'&&$change&&in_array((string)($change['status']??''),['provider_confirmed','applied'],true)&&in_array((string)($change['to_plan']??''),['starter','pro','business'],true))return (string)$change['to_plan'];
  return $original;
@@ -203,7 +207,7 @@ function pfNotify():never{
    // Only validated LIVE notifications grant paid investigation entitlements.
    if(pfMode()==='live'&&$policy==='activate'){$q=$db->prepare("UPDATE users SET plan=?,subscription_status='active' WHERE id=? AND (stripe_customer_id IS NULL OR stripe_customer_id='')");$q->execute([$effectivePlan,$item['user_id']]);}
    $q=$db->prepare("INSERT IGNORE INTO payfast_invoices(invoice_number,user_id,payment_id,order_id,plan,amount_cents,currency,status) VALUES(?,?,?,?,?,?,'ZAR',?)");
-   $q->execute(['PF-'.strtoupper(substr(hash('sha256',$payment),0,32)),$item['user_id'],$payment,$order,$effectivePlan,$gross,pfMode()==='live'?'paid':'sandbox_paid']);
+   $q->execute(['PF-'.strtoupper(substr(hash('sha256',$payment),0,32)),$item['user_id'],$payment,$order,pfReceiptPlan($effectivePlan),$gross,pfMode()==='live'?'paid':'sandbox_paid']);
    if($policy==='activate' && $amountDecision==='changed' && $change && $change['status']==='provider_confirmed'){
     $q=$db->prepare("UPDATE payfast_plan_changes SET status='applied' WHERE id=? AND status='provider_confirmed'");
     $q->execute([$change['id']]);
