@@ -121,7 +121,7 @@ $controller=file_get_contents(dirname(__DIR__).'/public/index.php');
 $checkoutSource=file_get_contents(dirname(__DIR__).'/app/payfast.php');
 $handoffJs=file_get_contents(dirname(__DIR__).'/public/assets/app.js');
 assertion(is_string($controller)&&str_contains($controller,'data-payfast-handoff'),'Subscribe uses the existing authenticated checkout route');
-assertion(is_string($controller)&&str_contains($controller,"https://payfast.co.za https://*.payfast.co.za"),'Billing-page CSP permits PayFast-owned hosted redirect destinations');
+assertion(is_string($controller)&&str_contains($controller,"https://payfast.co.za https://*.payfast.co.za https://payment.payfast.io"),'Billing-page CSP permits the confirmed PayFast hosted redirect destination');
 assertion(str_contains($controller,'$billingCheckoutRoute?'),'External PayFast form allowance is scoped to billing page');
 assertion(!str_contains($controller,'pfDirectHostedCheckout('),'Viewing billing must not create PayFast payment orders');
 assertion(is_string($checkoutSource)&&str_contains($checkoutSource,"HTTP_X_FYNDET_CHECKOUT"),'Backend initiation returns signed checkout data');
