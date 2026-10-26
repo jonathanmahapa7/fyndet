@@ -66,4 +66,11 @@ assertion(!pfApiSubscriptionCancelledResponse(200,['status'=>'success','data'=>[
 assertion(!pfApiSubscriptionCancelledResponse(401,$cancelled),'Unauthenticated provider status rejected');
 assertion(!pfApiSubscriptionCancelledResponse(200,['status'=>'success','data'=>['response'=>true]]),'Bare success boolean cannot substitute for cancelled state');
 assertion(preg_match('/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+00:00$/',gmdate('Y-m-d\\TH:i:s+00:00'))===1,'ISO-8601 subscription API timestamp format');
+require_once dirname(__DIR__).'/app/payfast_plan_changes.php';
+assertion(pfPlanChangeDirection('starter','pro')==='upgrade','Starter to Pro is an upgrade');
+assertion(pfPlanChangeDirection('business','starter')==='downgrade','Business to Starter is a downgrade');
+$invalid=false;try{pfPlanChangeDirection('starter','starter');}catch(DomainException $e){$invalid=true;}
+assertion($invalid,'Same-plan request rejected');
+$invalid=false;try{pfPlanChangeDirection('starter','other');}catch(DomainException $e){$invalid=true;}
+assertion($invalid,'Unknown target plan rejected');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
