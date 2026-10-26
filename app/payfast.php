@@ -42,6 +42,9 @@ function pfCheckout():never{
  if(!empty($account['stripe_customer_id'])||in_array((string)$account['subscription_status'],['active','trialing','past_due','unpaid'],true))throw new DomainException('Existing provider-managed subscription must be resolved before a new PayFast checkout.');
  $q=db()->prepare("SELECT COUNT(*) FROM payfast_subscriptions WHERE user_id=? AND status IN ('active','pending','paused')");
  $q->execute([$user['id']]);if((int)$q->fetchColumn()>0)throw new DomainException('This account already has a PayFast subscription; contact support for changes.');
+ $q=db()->prepare("SELECT COUNT(*) FROM payfast_orders WHERE user_id=? AND mode=? AND status='pending' AND created_at>DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE)");
+ $q->execute([$user['id'],pfMode()]);
+ if((int)$q->fetchColumn()>0)throw new DomainException('A checkout is already pending. Please return to billing after 30 minutes or contact support.');
  $order=bin2hex(random_bytes(16));
  $q=db()->prepare("INSERT INTO payfast_orders(id,user_id,plan,amount_cents,mode,status) VALUES (?,?,?,?,?,'pending')");
  $q->execute([$order,$user['id'],$plan,$cents,pfMode()]);
