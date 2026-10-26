@@ -32,11 +32,11 @@ if($path==='/admin'){
  $customers=db()->query('SELECT email,name,plan,subscription_status,created_at FROM users ORDER BY id DESC LIMIT 50')->fetchAll();
  foreach($customers as $account)echo '<tr><td>'.esc((string)$account['email']).'</td><td>'.esc((string)$account['plan']).'</td><td>'.esc((string)$account['subscription_status']).'</td><td>'.esc((string)$account['created_at']).'</td></tr>';
  echo '</tbody></table></div></section>';fyndetAdminUsers($u);
- $changeRequests=db()->query("SELECT c.id,c.from_plan,c.to_plan,c.status,c.requested_at,u.email FROM payfast_plan_changes c JOIN users u ON u.id=c.user_id WHERE c.status='awaiting_review' ORDER BY c.requested_at ASC LIMIT 50")->fetchAll();
+ $changeRequests=db()->query("SELECT c.id,c.from_plan,c.to_plan,c.status,c.requested_at,u.email FROM payfast_plan_changes c JOIN users u ON u.id=c.user_id WHERE c.status IN ('awaiting_review','provider_confirmed') ORDER BY c.requested_at ASC LIMIT 50")->fetchAll();
  echo '<section class="panel" style="margin-top:18px"><h2>Pending PayFast plan-change requests</h2><p class="muted">Review only. No payment update or customer entitlement changes are authorised through this overview.</p>';
  if(!$changeRequests)echo '<p>No pending plan changes.</p>';
  else{
-  echo '<div class="table-scroll"><table><thead><tr><th>Customer</th><th>Current</th><th>Requested</th><th>Received</th></tr></thead><tbody>';
+  echo '<div class="table-scroll"><table><thead><tr><th>Customer</th><th>Current</th><th>Requested</th><th>Status</th><th>Received</th></tr></thead><tbody>';
   foreach($changeRequests as $c)echo '<tr><td>'.esc((string)$c['email']).'</td><td>'.esc(ucfirst((string)$c['from_plan'])).'</td><td>'.esc(ucfirst((string)$c['to_plan'])).'</td><td>'.esc((string)$c['requested_at']).'</td></tr>';
   echo '</tbody></table></div>';
  }
