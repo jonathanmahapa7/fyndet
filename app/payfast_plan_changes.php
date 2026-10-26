@@ -30,6 +30,21 @@ if($path==='/payfast/plan-change'&&$_SERVER['REQUEST_METHOD']==='POST'){
  flash('Your '. $direction .' request is recorded. No payment amount or plan benefits have changed. We will confirm terms before any change takes effect.');
  go('app/billing');
 }
+if($path==='/payfast/plan-change/withdraw'&&$_SERVER['REQUEST_METHOD']==='POST'){
+ verifyCsrf();$u=mustUser();
+ $db=db();$db->beginTransaction();
+ try{
+  $lock=$db->prepare('SELECT id FROM users WHERE id=? FOR UPDATE');$lock->execute([$u['id']]);
+  if(!$lock->fetchColumn())throw new DomainException('Account not found.');
+  $q=$db->prepare("UPDATE payfast_plan_changes SET status='withdrawn' WHERE user_id=? AND status='awaiting_review'");
+  $q->execute([$u['id']]);
+  if($q->rowCount()!==1)throw new DomainException('No pending plan-change request to withdraw.');
+  $db->commit();
+ }catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
+ auditEvent((int)$u['id'],'billing.payfast.plan_change_withdrawn',null);
+ flash('Your plan-change request has been withdrawn. Your subscription remains unchanged.');
+ go('app/billing');
+}
 function pfRenderPlanChangePanel(array $u):void{
  if(!pfEnabled())return;
  $q=db()->prepare('SELECT s.plan,s.status,s.mode,s.token FROM payfast_subscriptions s WHERE s.user_id=? AND s.mode=?');
@@ -39,7 +54,7 @@ function pfRenderPlanChangePanel(array $u):void{
  $q->execute([$u['id']]);$pending=$q->fetch();
  echo '<section class="panel" style="margin:18px 0"><h2>Change your subscription</h2>';
  if($pending){
-  echo '<p>A request to change from '.esc(ucfirst($pending['from_plan'])).' to '.esc(ucfirst($pending['to_plan'])).' is awaiting review. Your current subscription and charges are unchanged.</p>';
+  echo '<p>A request to change from '.esc(ucfirst($pending['from_plan'])).' to '.esc(ucfirst($pending['to_plan'])).' is awaiting review. Your current subscription and charges are unchanged.</p><form method="post" action="/payfast/plan-change/withdraw"><input type="hidden" name="_csrf" value="'.csrf().'"><button class="button button-outline">Withdraw request</button></form>';
  }else{
   echo '<p class="muted">Request an upgrade or downgrade. This request does not change your subscription, payment amount or access. Updated recurring charges require separate confirmation.</p><div class="billing-choices">';
   foreach(['starter','pro','business'] as $tier){
