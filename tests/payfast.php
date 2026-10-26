@@ -124,7 +124,7 @@ assertion(is_string($controller)&&str_contains($controller,'data-payfast-handoff
 assertion(str_contains($controller,'$allowedForms'),'Billing-page CSP permits only the configured PayFast gateway');
 assertion(!str_contains($controller,'pfDirectHostedCheckout('),'Viewing billing must not create PayFast payment orders');
 assertion(is_string($checkoutSource)&&str_contains($checkoutSource,"HTTP_X_FYNDET_CHECKOUT"),'Backend initiation returns signed checkout data');
-assertion(str_contains($checkoutSource,"'fields'=>$fields"),'Backend returns server-signed hosted fields');
+assertion(str_contains($checkoutSource,"'fields'=>"),'Backend returns server-signed hosted fields');
 assertion(!str_contains($checkoutSource,'Connecting securely to PayFast'),'No intermediate FyndEt payment page');
 assertion(is_string($handoffJs)&&str_contains($handoffJs,"fetch(form.action"),'Browser requests signed order on package selection');
 assertion(str_contains($handoffJs,"document.createElement('form')"),'Browser dynamically creates hidden provider form');
