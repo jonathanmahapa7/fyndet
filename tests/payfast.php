@@ -90,4 +90,10 @@ $headers=['merchant-id'=>'10004002','version'=>'v1','timestamp'=>'2026-10-26T20:
 assertion(pfApiSubscriptionUpdateSignature($headers,['amount'=>'41430'])!==pfApiSubscriptionUpdateSignature($headers,['amount'=>'24858']),'PayFast subscription update signature binds the exact future amount');
 assertion(pfApiSubscriptionUpdateSignature($headers,['amount'=>'41430'])===pfApiSignature([...$headers,'amount'=>'41430']),'PayFast API signing is canonical across body ordering');
 assertion(pfItnAmountDecision(24858,24858,['status'=>'applied','quoted_zar_cents'=>41430])==='reject','Stale original amount rejected after activated upgrade');
+$confirmedPayload=['status'=>'success','data'=>['response'=>['status_text'=>'ACTIVE','amount'=>41430]]];
+assertion(pfApiConfirmedAmount(200,$confirmedPayload,41430),'Exact active provider recurring amount confirmed');
+assertion(!pfApiConfirmedAmount(401,$confirmedPayload,41430),'Unauthorised fetch cannot confirm recurring amount');
+assertion(!pfApiConfirmedAmount(200,$confirmedPayload,42000),'Wrong provider amount cannot confirm update');
+assertion(!pfApiConfirmedAmount(200,['status'=>'success','data'=>['response'=>['status_text'=>'CANCELLED','amount'=>41430]]],41430),'Cancelled provider subscription cannot confirm update');
+assertion(!pfApiConfirmedAmount(200,['status'=>'success','data'=>['response'=>['status_text'=>'ACTIVE','amount'=>'41430.99']]],41430),'Fractional provider amount rejected');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
