@@ -15,7 +15,7 @@ try{
  $db=new PDO('mysql:host='.($env['DB_HOST']??'localhost').';port='.($env['DB_PORT']??'3306').';dbname='.($env['DB_NAME']??'').';charset=utf8mb4',$env['DB_USER']??'',$env['DB_PASS']??'',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);
  $q=$db->query("SELECT o.id,o.status,o.amount_cents,o.payment_id,COUNT(DISTINCT CASE WHEN n.payment_status='COMPLETE' THEN n.payment_id END) AS completed_events,
  COUNT(DISTINCT i.payment_id) AS receipts,
- SUM(CASE WHEN n.payment_status='FAILED' THEN 1 ELSE 0 END) AS failures
+ COUNT(DISTINCT CASE WHEN n.payment_status='FAILED' THEN n.id END) AS failures
  FROM payfast_orders o
  LEFT JOIN payfast_notifications n ON n.order_id=o.id
  LEFT JOIN payfast_invoices i ON i.order_id=o.id
