@@ -46,7 +46,7 @@ RewriteCond %{HTTPS} !=on
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.php [L,QSA]
+RewriteRule ^ index.php [END,QSA]
 </IfModule>
 <IfModule mod_headers.c>
 Header always set X-Content-Type-Options "nosniff"
