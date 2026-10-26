@@ -22,6 +22,13 @@ assertion(str_contains(pfCheckoutCsp('sandbox'),'form-action https://sandbox.pay
 assertion(!str_contains(pfCheckoutCsp('sandbox'),'www.payfast.co.za'),'Sandbox checkout CSP excludes live gateway');
 assertion(str_contains(pfCheckoutCsp('live'),'form-action https://www.payfast.co.za'),'Live checkout CSP permits live gateway');
 assertion(!str_contains(pfCheckoutCsp('live'),'sandbox.payfast.co.za'),'Live checkout CSP excludes sandbox gateway');
+$nonce=base64_encode(str_repeat('X',18));
+assertion(str_contains(pfCheckoutRedirectCsp('live',$nonce),"script-src 'nonce-".$nonce."'"),'Live PayFast automatic POST allows only its one-time script');
+assertion(str_contains(pfCheckoutRedirectCsp('live',$nonce),'form-action https://www.payfast.co.za'),'Automatic production handoff posts to live gateway');
+assertion(!str_contains(pfCheckoutRedirectCsp('live',$nonce),'sandbox.payfast.co.za'),'Automatic production handoff never permits sandbox gateway');
+$invalidNonce=false;try{pfCheckoutRedirectCsp('live','bad');}catch(DomainException $e){$invalidNonce=true;}
+assertion($invalidNonce,'Malformed automatic-checkout script nonce rejected');
+
 $sample=['id'=>str_repeat('a',32),'plan'=>'starter','amount_cents'=>25000];
 assertion(pfReusablePendingOrder($sample,'starter',25000)===str_repeat('a',32),'Matching pending checkout retains original reference');
 foreach ([['pro',25000],['starter',41500]] as [$plan,$amount]) {
