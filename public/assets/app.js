@@ -50,7 +50,7 @@ document.querySelectorAll('form[data-payfast-handoff]').forEach(form => {
       button.textContent = oldText;
       const note = document.createElement('p');
       note.setAttribute('role', 'alert');
-      note.textContent = 'PayFast could not be opened. No payment was made. Please try again.';
+      note.textContent = 'PayFast checkout could not start (' + (error instanceof Error ? error.message : 'unknown error') + '). No payment was made.';
       form.appendChild(note);
       console.error('FyndEt payment handoff:', error);
     }
