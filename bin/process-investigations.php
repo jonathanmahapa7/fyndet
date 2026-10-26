@@ -46,6 +46,11 @@ for($i=0;$i<2;$i++){
   $authorised=$account && !empty($account['email_verified_at']) && hash_equals(strtolower($account['email']),strtolower($job['target_email']));
   $result['subject_scope']=$authorised?'verified_registered_email_self_check':'public_domain_lookup';
   $result['expanded_discovery']=['sources'=>['domain_intelligence'=>fyndetDnsIntelligence(strtolower($job['target_email']))]];
+  $domainEvidence=$result['expanded_discovery']['sources']['domain_intelligence'];
+  foreach(['mail_routing'=>['MX'],'mail_authentication'=>['TXT','DMARC'],'transport_security'=>['MTA-STS','TLS-RPT'],'web_infrastructure'=>['A','AAAA','NS','CAA']] as $category=>$recordTypes){
+    $evidence=array_values(array_filter($domainEvidence['items']??[],static fn($item)=>in_array($item['record_type']??'', $recordTypes,true)));
+    $result['expanded_discovery']['sources'][$category]=fyndetDiscoveryResult($evidence?'observed':'not_found','Public domain records assessed independently',$evidence);
+  }
   $result['evidence_summary']=fyndetCorrelate($result['expanded_discovery']['sources']);
   if($authorised){
     $result['public_references']=publicCommitEvidence(strtolower($job['target_email']),$env);
