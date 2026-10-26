@@ -213,7 +213,7 @@ try {
   if(isset($_GET['success']))echo '<p class="flash">Checkout completed. Your subscription status will update after secure payment confirmation.</p>';
   if(isset($_GET['cancel']))echo '<p class="flash">Checkout cancelled. No plan change was applied.</p>';
   if(empty($u['email_verified_at']))echo '<p class="flash">Verify your registered email address before starting a paid subscription.</p>';
-  echo '<section class="panel" style="margin:18px 0"><h2>USD subscription pricing</h2><p class="muted">USD is the standard subscription currency. Checkout is temporarily paused while billing is reviewed.</p><div class="billing-choices">';
+  echo '<section class="panel" style="margin:18px 0"><h2>USD subscription pricing</h2><p class="muted">USD is the standard subscription currency. PayFast settlement is in ZAR; amounts shown in rand are exchange-rate estimates, not guaranteed card conversion rates.</p><div class="billing-choices">';
   foreach(['starter','pro','business'] as $tier){
    $usd=number_format(fyndetUsdCents($tier)/100,2);
    $zar=fyndetIndicativeZar($tier,$fx);
@@ -221,7 +221,7 @@ try {
   }
   echo '</div>'.($fx?'<p class="muted">Indicative USD/ZAR reference: '.esc(number_format((float)$fx['rate'],4)).' ('.esc((string)$fx['date']).', Frankfurter). Actual payment conversion may differ.</p>':'<p class="muted">FX reference unavailable. USD prices remain unchanged.</p>').'</section>';
   if(pfEnabled()){
-   echo '<section class="panel" style="margin:18px 0"><h2>PayFast '.esc(ucfirst(pfMode())).' — monthly subscriptions</h2><p class="muted">'.(pfMode()==='sandbox'?'Sandbox transactions only: no real payments or production entitlements.':'Secure recurring payments in ZAR; your plan activates only after verified payment notification.').'</p><div class="billing-choices">';
+   echo '<section class="panel" style="margin:18px 0"><h2>PayFast '.esc(ucfirst(pfMode())).' — monthly subscriptions</h2><p class="muted">'.(pfMode()==='sandbox'?'Sandbox transactions only: no real payments or production entitlements.':'Recurring payments are charged in ZAR at the quoted amount; later renewals do not automatically track USD/ZAR. Access activates only after verified payment notification.').'</p><div class="billing-choices">';
    foreach(['starter','pro','business'] as $tier){$cents=pfAmount($tier);if($cents<500)continue;echo '<article class="panel"><h3>'.esc(ucfirst($tier)).'</h3><p>R'.esc(number_format($cents/100,2)).' / month</p><form method="post" action="/payfast/checkout"><input type="hidden" name="_csrf" value="'.csrf().'"><input type="hidden" name="plan" value="'.$tier.'"><button class="button button-outline"'.(empty($u['email_verified_at'])?' disabled':'').'>'.(pfMode()==='sandbox'?'Test ':'Subscribe to ').esc(ucfirst($tier)).'</button></form></article>';}
    echo '</div></section>';
   }
