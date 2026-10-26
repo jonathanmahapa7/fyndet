@@ -62,15 +62,16 @@ function pfNotify():never{
  try {
   $q=$db->prepare('SELECT id,user_id,plan,amount_cents,mode,status,payment_id FROM payfast_orders WHERE id=? FOR UPDATE');$q->execute([$order]);$item=$q->fetch();
   if(!$item||$item['mode']!=='sandbox'||!hash_equals(number_format((int)$item['amount_cents']/100,2,'.',''),number_format((float)($fields['amount_gross']??-1),2,'.',''))){$db->rollBack();http_response_code(400);exit('Order mismatch');}
-  if(!empty($item['payment_id'])&&!hash_equals((string)$item['payment_id'],$payment)){$db->rollBack();http_response_code(409);exit('Payment mismatch');}
+  // Renewals use new payment IDs against the original merchant order reference.
+  // Every event is de-duplicated separately in payfast_notifications.
   $q=$db->prepare('INSERT IGNORE INTO payfast_notifications(payment_id,payment_status,order_id) VALUES(?,?,?)');$q->execute([$payment,$state,$order]);
   if($q->rowCount()===0){$db->commit();http_response_code(200);exit('Already processed');}
   if($state==='COMPLETE'){
    $q=$db->prepare("UPDATE payfast_orders SET status='complete',payment_id=? WHERE id=?");$q->execute([$payment,$order]);
    $q=$db->prepare("INSERT INTO payfast_subscriptions(user_id,order_id,token,plan,status,mode) VALUES(?,?,?,?,'active','sandbox') ON DUPLICATE KEY UPDATE token=COALESCE(VALUES(token),token),plan=VALUES(plan),status='active'");
    $token=trim((string)($fields['token']??''));$q->execute([$item['user_id'],$order,$token!==''?$token:null,$item['plan']]);
-   $q=$db->prepare("UPDATE users SET plan=?,subscription_status='active' WHERE id=? AND (stripe_customer_id IS NULL OR stripe_customer_id='')");$q->execute([$item['plan'],$item['user_id']]);
-   $q=$db->prepare("INSERT IGNORE INTO payfast_invoices(invoice_number,user_id,payment_id,order_id,amount_cents,currency,status) VALUES(?,?,?,?,?,'ZAR','paid')");
+   // Test transactions must never grant production credits or paid access.
+   $q=$db->prepare("INSERT IGNORE INTO payfast_invoices(invoice_number,user_id,payment_id,order_id,amount_cents,currency,status) VALUES(?,?,?,?,?,'ZAR','sandbox_paid')");
    $q->execute(['PF-'.strtoupper(substr($payment,0,40)),$item['user_id'],$payment,$order,$item['amount_cents']]);
   }elseif($state==='FAILED'||$state==='CANCELLED'){
    $q=$db->prepare('UPDATE payfast_orders SET status=?,payment_id=? WHERE id=? AND status!=\'complete\'');$q->execute([strtolower($state),$payment,$order]);
