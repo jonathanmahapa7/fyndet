@@ -140,7 +140,7 @@ function pfEffectivePlanForRenewal(string $original,string $amountDecision,?arra
  return $original;
 }
 function pfItnAmountDecision(int $initialCents,int $grossCents,?array $change):string{
- if($grossCents===$initialCents)return 'original';
+ if($grossCents===$initialCents)return ($change&&($change['status']??'')==='applied')?'reject':'original';
  if($change&&in_array((string)($change['status']??''),['provider_confirmed','applied'],true)&&$grossCents===(int)($change['quoted_zar_cents']??-1))return 'changed';
  return 'reject';
 }
