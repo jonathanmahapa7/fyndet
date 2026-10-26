@@ -122,9 +122,9 @@ assertion(is_string($checkoutSource)&&str_contains($checkoutSource,"\$GLOBALS['c
 assertion(is_string($checkoutSource)&&str_contains($checkoutSource,"header_remove('Content-Security-Policy')"),'Hosted checkout replaces the restrictive application form policy');
 assertion(is_string($checkoutSource)&&str_contains($checkoutSource,'HTMLFormElement.prototype.submit.call(f)'),'Hosted checkout uses native automatic POST');
 $controller=file_get_contents(dirname(__DIR__).'/public/index.php');
-assertion(is_string($controller)&&str_contains($controller,'fyndet-payfast-direct'),'Billing Subscribe uses direct provider handoff');
-assertion(str_contains($controller,"'X-FyndEt-Checkout':'direct'"),'Billing checkout fetch uses same-origin signed-order POST');
-assertion(str_contains($controller,'HTMLFormElement.prototype.submit.call(gatewayForm)'),'Billing checkout submits signed form directly to provider');
+assertion(is_string($controller)&&str_contains($controller,'pfDirectHostedCheckout($u,$tier)'),'Billing Subscribe creates direct signed provider form');
+assertion(!str_contains($controller,'fyndet-payfast-direct'),'Obsolete AJAX billing submission removed');
+assertion(str_contains($controller,"action=\"'.esc($hosted['gateway']).'\""),'Billing checkout submits natively to provider URL');
 assertion(str_contains($controller,'$billingCheckoutRoute'),'Checkout form security policy scoped to billing route');
 $payfastSource=file_get_contents(dirname(__DIR__).'/app/payfast.php');
 assertion(is_string($payfastSource)&&str_contains($payfastSource,"HTTP_X_FYNDET_CHECKOUT"),'PayFast creates signed browser checkout fields on demand');
