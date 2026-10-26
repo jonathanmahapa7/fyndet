@@ -6,7 +6,7 @@ declare(strict_types=1);
  * route while preserving subdirectory-safe HTML asset links and form actions.
  * Set FYNDET_BASE_PATH=/fyndet in Apache for this shared-domain installation.
  */
-$mount=rtrim((string)(getenv('FYNDET_BASE_PATH')?:''),'/');
+$mount=rtrim((string)(getenv('FYNDET_BASE_PATH')?:'/fyndet'),'/');
 if($mount!=='' && (!str_starts_with($mount,'/') || !preg_match('~^/[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_-]+)*$~',$mount))) {
  http_response_code(503);exit('Invalid application mount point.');
 }
