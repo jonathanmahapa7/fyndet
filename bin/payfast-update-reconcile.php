@@ -28,8 +28,7 @@ try{
   }
   try{
    [$http,$payload]=pfApiCallSubscription((string)$row['token'],'fetch');
-   $provider=$payload['data']['response']??null;
-   $ok=$http===200&&($payload['status']??'')==='success'&&is_array($provider)&&strtoupper((string)($provider['status_text']??''))==='ACTIVE'&&(int)($provider['amount']??-1)===(int)$row['quoted_zar_cents'];
+   $ok=pfApiConfirmedAmount($http,$payload,(int)$row['quoted_zar_cents']);
    if(!$ok){echo "REVIEW: Request #$id provider amount/status not confirmed\n";$unresolved++;continue;}
    $db->beginTransaction();
    try{
