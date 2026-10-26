@@ -135,6 +135,10 @@ function pfRenewalPolicy(array $order,?array $subscription,string $status,string
  return 'activate';
 }
 /** Preserve original checkout while accepting only explicit provider-confirmed change quotes. */
+function pfEffectivePlanForRenewal(string $original,string $amountDecision,?array $change):string{
+ if($amountDecision==='changed'&&$change&&in_array((string)($change['status']??''),['provider_confirmed','applied'],true)&&in_array((string)($change['to_plan']??''),['starter','pro','business'],true))return (string)$change['to_plan'];
+ return $original;
+}
 function pfItnAmountDecision(int $initialCents,int $grossCents,?array $change):string{
  if($grossCents===$initialCents)return 'original';
  if($change&&in_array((string)($change['status']??''),['provider_confirmed','applied'],true)&&$grossCents===(int)($change['quoted_zar_cents']??-1))return 'changed';
@@ -186,7 +190,7 @@ function pfNotify():never{
     $cancelledOriginal=$previous&&$previous['status']==='cancelled'&&hash_equals((string)$previous['order_id'],$order);
    $q=$db->prepare("INSERT INTO payfast_subscriptions(user_id,order_id,token,plan,status,mode) VALUES(?,?,?,?,'active',?) ON DUPLICATE KEY UPDATE order_id=VALUES(order_id),token=COALESCE(VALUES(token),token),plan=VALUES(plan),status='active',mode=VALUES(mode)");
    if(pfMode()==='live'&&$token===''&&empty($previous['token']))throw new RuntimeException('Missing recurring subscription token; retry notification');
-   $effectivePlan=($amountDecision==='changed'&&$change&&in_array($change['status'],['provider_confirmed','applied'],true))?(string)$change['to_plan']:(string)$item['plan'];
+   $effectivePlan=pfEffectivePlanForRenewal((string)$item['plan'],$amountDecision,$change);
    if($policy==='activate')$q->execute([$item['user_id'],$order,$token!==''?$token:null,$effectivePlan,pfMode()]);
    // Only validated LIVE notifications grant paid investigation entitlements.
    if(pfMode()==='live'&&$policy==='activate'){$q=$db->prepare("UPDATE users SET plan=?,subscription_status='active' WHERE id=? AND (stripe_customer_id IS NULL OR stripe_customer_id='')");$q->execute([$effectivePlan,$item['user_id']]);}
