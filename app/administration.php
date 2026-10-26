@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 function platformAdmin():array {
- $u=mustUser();$s=db()->prepare('SELECT is_platform_admin,totp_enabled FROM users WHERE id=?');$s->execute([$u['id']]);
+ $u=mustUser();if(empty($u['email_verified_at'])){http_response_code(403);pageTop('Email verification required');echo '<main class="section container"><h1>Verify your email address</h1><p>Verify your registered email before accessing administration.</p></main>';pageEnd();exit;}$s=db()->prepare('SELECT is_platform_admin,totp_enabled FROM users WHERE id=?');$s->execute([$u['id']]);
  $authority=$s->fetch();
  if(!$authority||(int)$authority['is_platform_admin']!==1){http_response_code(403);pageTop('Access denied');echo '<main class="section container"><h1>Access denied</h1><p>Administrator permission is required.</p></main>';pageEnd();exit;}
  if((int)$authority['totp_enabled']!==1){http_response_code(403);pageTop('Security requirement');echo '<main class="section container"><h1>Administrator MFA required</h1><p>Enable two-factor authentication before accessing sensitive operations.</p><a class="button button-accent" href="/app/security">Open security settings ↗</a></main>';pageEnd();exit;}
