@@ -86,4 +86,7 @@ assertion(pfEffectivePlanForRenewal('starter','changed',['status'=>'provider_con
 assertion(pfEffectivePlanForRenewal('starter','changed',['status'=>'applied','to_plan'=>'pro'])==='pro','Later renewals retain upgraded plan');
 assertion(pfEffectivePlanForRenewal('pro','original',['status'=>'provider_confirmed','to_plan'=>'starter'])==='pro','Old amount cannot activate downgrade');
 assertion(pfEffectivePlanForRenewal('starter','changed',['status'=>'awaiting_review','to_plan'=>'pro'])==='starter','Unconfirmed plan cannot activate');
+$headers=['merchant-id'=>'10004002','version'=>'v1','timestamp'=>'2026-10-26T20:00:00+00:00'];
+assertion(pfApiSubscriptionUpdateSignature($headers,['amount'=>'41430'])!==pfApiSubscriptionUpdateSignature($headers,['amount'=>'24858']),'PayFast subscription update signature binds the exact future amount');
+assertion(pfApiSubscriptionUpdateSignature($headers,['amount'=>'41430'])===pfApiSignature([...$headers,'amount'=>'41430']),'PayFast API signing is canonical across body ordering');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
