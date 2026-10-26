@@ -6,18 +6,36 @@ function pfApiSignature(array $values):string{
  ksort($values,SORT_STRING);
  return md5(http_build_query(array_filter($values,static fn($v)=>$v!==''&&$v!==null),'','&',PHP_QUERY_RFC1738));
 }
-function pfApiCancel(string $token):bool{
- if(!pfEnabled()||!preg_match('/^[a-f0-9-]{36}$/i',$token))return false;
- $timestamp=gmdate('Y-m-d\TH:i:s+00:00');
- $headers=['merchant-id'=>cfg('PAYFAST_MERCHANT_ID'),'version'=>'v1','timestamp'=>$timestamp];
- $sig=pfApiSignature($headers);
+/** A provider-side CANCELLED state is the only cancellation confirmation. */
+function pfApiSubscriptionCancelledResponse(int $http,mixed $payload):bool{
+ return $http===200 && is_array($payload) &&
+  ($payload['status']??null)==='success' &&
+  is_array($payload['data']['response']??null) &&
+  strtoupper(trim((string)($payload['data']['response']['status_text']??'')))==='CANCELLED';
+}
+function pfApiCallSubscription(string $token,string $action,string $method='GET'):array{
+ if(!pfEnabled()||!preg_match('/^[a-f0-9-]{36}$/iD',$token))throw new DomainException('Invalid sandbox or subscription.');
+ if(!in_array($action,['fetch','cancel'],true)||!in_array($method,['GET','PUT'],true))throw new DomainException('Unsupported PayFast action.');
  if(!function_exists('curl_init'))throw new RuntimeException('cURL unavailable.');
- $url='https://api.payfast.co.za/subscriptions/'.$token.'/cancel'.(pfMode()==='sandbox'?'?testing=true':'');
+ $timestamp=gmdate('Y-m-d\\TH:i:s+00:00');
+ $headers=['merchant-id'=>cfg('PAYFAST_MERCHANT_ID'),'version'=>'v1','timestamp'=>$timestamp];
+ $signature=pfApiSignature($headers);
+ $url='https://api.payfast.co.za/subscriptions/'.$token.'/'.$action.(pfMode()==='sandbox'?'?testing=true':'');
  $h=curl_init($url);
- curl_setopt_array($h,[CURLOPT_CUSTOMREQUEST=>'PUT',CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>15,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_HTTPHEADER=>['merchant-id: '.$headers['merchant-id'],'version: v1','timestamp: '.$timestamp,'signature: '.$sig]]);
- $response=curl_exec($h);$status=(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE);curl_close($h);
- $data=is_string($response)?json_decode($response,true):null;
- return $status===200&&is_array($data)&&($data['status']??'')==='success'&&($data['data']['response']??null)===true;
+ if($h===false)throw new RuntimeException('Unable to initialise PayFast API.');
+ curl_setopt_array($h,[CURLOPT_CUSTOMREQUEST=>$method,CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>20,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_HTTPHEADER=>['merchant-id: '.$headers['merchant-id'],'version: v1','timestamp: '.$timestamp,'signature: '.$signature]]);
+ $response=curl_exec($h);$http=(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE);$error=curl_errno($h);curl_close($h);
+ if($error!==0||!is_string($response))throw new RuntimeException('PayFast subscription API connection failed.');
+ $payload=json_decode($response,true);
+ return [$http,is_array($payload)?$payload:null];
+}
+function pfApiCancel(string $token):bool{
+ if(!pfEnabled()||!preg_match('/^[a-f0-9-]{36}$/iD',$token))return false;
+ // Do not infer success from a cancellation endpoint response shape:
+ // independently fetch the provider status before changing local records.
+ pfApiCallSubscription($token,'cancel','PUT');
+ [$http,$payload]=pfApiCallSubscription($token,'fetch');
+ return pfApiSubscriptionCancelledResponse($http,$payload);
 }
 if($path==='/payfast/cancel'&&$_SERVER['REQUEST_METHOD']==='POST'){
  verifyCsrf();$user=mustUser();if(!pfEnabled())throw new DomainException('PayFast is unavailable.');
