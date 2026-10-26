@@ -49,4 +49,12 @@ assertion(pfSignature($hostedFields,'payfast')==='4efb7e372524c802836430a474d0ca
 $wrongOrder=$hostedFields;unset($wrongOrder['recurring_amount'],$wrongOrder['frequency'],$wrongOrder['cycles']);
 $wrongOrder['frequency']='3';$wrongOrder['cycles']='0';$wrongOrder['recurring_amount']='248.58';
 assertion(pfSignature($wrongOrder,'payfast')!==pfSignature($hostedFields,'payfast'),'Recurring field order materially changes gateway signature');
+$order=['id'=>str_repeat('b',32),'mode'=>'sandbox','status'=>'complete'];
+$sub=['order_id'=>str_repeat('b',32),'mode'=>'sandbox','status'=>'active','token'=>'token-one'];
+assertion(pfRenewalPolicy($order,$sub,'COMPLETE','second-payment','token-one')==='activate','Matching successful renewal remains eligible');
+assertion(pfRenewalPolicy($order,$sub,'FAILED','failed-payment','token-one')==='record_only','Failed renewal cannot grant paid access');
+assertion(pfRenewalPolicy($order,[...$sub,'status'=>'cancelled'],'COMPLETE','late-payment','token-one')==='record_only','Late payment cannot reactivate cancelled subscription');
+assertion(pfRenewalPolicy($order,$sub,'COMPLETE','second-payment','different-token')==='reject','Recurring token mismatch rejected');
+assertion(pfRenewalPolicy([...$order,'status'=>'superseded'],$sub,'COMPLETE','second-payment','token-one')==='reject','Superseded order cannot activate');
+assertion(pfRenewalPolicy($order,[...$sub,'order_id'=>str_repeat('c',32)],'COMPLETE','second-payment','token-one')==='reject','Wrong subscription order rejected');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
