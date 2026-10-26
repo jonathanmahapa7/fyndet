@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS payfast_plan_changes (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ user_id BIGINT UNSIGNED NOT NULL,
+ order_id CHAR(32) NOT NULL,
+ from_plan VARCHAR(20) NOT NULL,
+ to_plan VARCHAR(20) NOT NULL,
+ quoted_usd_cents INT UNSIGNED NOT NULL,
+ quoted_zar_cents INT UNSIGNED NOT NULL,
+ status VARCHAR(24) NOT NULL DEFAULT 'awaiting_review',
+ requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ INDEX idx_pf_changes_user (user_id,requested_at),
+ INDEX idx_pf_changes_order (order_id),
+ FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
+ FOREIGN KEY (order_id) REFERENCES payfast_orders(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
