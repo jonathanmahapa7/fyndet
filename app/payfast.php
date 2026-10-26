@@ -32,6 +32,10 @@ function pfItnParameterString(array $fields):string{
  }
  return implode('&',$parts);
 }
+function pfCheckoutCsp(string $mode):string{
+ $gateway=$mode==='live'?'https://www.payfast.co.za':'https://sandbox.payfast.co.za';
+ return "default-src 'none'; base-uri 'none'; form-action ".$gateway."; frame-ancestors 'none'";
+}
 function pfCheckout():never{
  if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit;}
  verifyCsrf();$user=mustUser();
@@ -58,7 +62,7 @@ function pfCheckout():never{
  // This standalone checkout page posts directly to PayFast. The global CSP
  // limits form submission to self and would otherwise block the hosted gateway.
  // Restrict the exception to the exact active environment, never both.
- header("Content-Security-Policy: default-src 'none'; base-uri 'none'; form-action ".(pfMode()==='live'?'https://www.payfast.co.za':'https://sandbox.payfast.co.za')."; frame-ancestors 'none'");
+ header('Content-Security-Policy: '.pfCheckoutCsp(pfMode()));
  echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>PayFast subscription checkout</title></head><body><h1>PayFast '.esc(ucfirst(pfMode())).' checkout</h1><p>Recurring subscription: R'.esc(number_format($cents/100,2)).' per month. '.(pfMode()==='sandbox'?'Sandbox simulation; no real payment.':'Live recurring payment; real money will be collected.').'</p><form action="'.esc($gateway).'" method="post">';
  foreach($fields as $k=>$v)echo '<input type="hidden" name="'.esc($k).'" value="'.esc((string)$v).'">';
  echo '<button type="submit">Continue to PayFast</button></form></body></html>';exit;
