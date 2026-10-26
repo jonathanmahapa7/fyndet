@@ -35,7 +35,7 @@ function pfApiSubscriptionUpdateSignature(array $headers,array $body):string{
 }
 function pfApiUpdateAmount(string $token,int $amount):bool{
  if(!pfEnabled()||(pfMode()==='live'&&cfg('PAID_BILLING_ENABLED','0')!=='1')||$amount<500||$amount>100000000||preg_match('/^[a-f0-9-]{36}$/iD',$token)!==1)throw new DomainException('Subscription update not permitted.');
- $timestamp=gmdate('Y-m-d\\TH:i:s+00:00');
+ $timestamp=gmdate('Y-m-d\TH:i:s+00:00');
  $headers=['merchant-id'=>cfg('PAYFAST_MERCHANT_ID'),'version'=>'v1','timestamp'=>$timestamp];
  $body=['amount'=>(string)$amount];
  $signature=pfApiSubscriptionUpdateSignature($headers,$body);
