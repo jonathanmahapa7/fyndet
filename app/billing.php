@@ -28,6 +28,7 @@ function stripeCall(string $endpoint,array $body=[]):array {
 function checkout():never {
  if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit('Method not allowed.');}
  verifyCsrf();$u=mustUser();
+ if(cfg('PAYFAST_ENABLED','0')==='1')throw new DomainException('PayFast is the selected payment provider. Stripe checkout is not available.');
  if(cfg('PAID_BILLING_ENABLED','0')!=='1')throw new DomainException('Paid subscriptions are not yet active.');
  // Subscription checkout is restricted until email ownership is verified.
  if(empty($u['email_verified_at']))throw new DomainException('Verify your email before subscribing.');
