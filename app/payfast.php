@@ -5,8 +5,15 @@ function pfMode():string{return cfg('PAYFAST_MODE','sandbox');}
 function pfEnabled():bool{return cfg('PAYFAST_ENABLED','0')==='1'&&in_array(pfMode(),['sandbox','live'],true)&&(pfMode()==='sandbox'||cfg('PAYFAST_LIVE_APPROVED','0')==='1')&&cfg('PAYFAST_MERCHANT_ID')!==''&&cfg('PAYFAST_MERCHANT_KEY')!==''&&cfg('PAYFAST_PASSPHRASE')!=='';}
 function pfAmount(string $plan):int{
  if(!in_array($plan,['starter','pro','business'],true))return 0;
+ if(cfg('PLATFORM_CURRENCY','ZAR')==='USD'){
+  // PayFast checkout is ZAR. The ZAR quote is captured per order.
+  if(!function_exists('fyndetFxRate')||!function_exists('fyndetUsdCents'))return 0;
+  $fx=fyndetFxRate();
+  if(!$fx || time()-(int)$fx['fetched_at']>86400)return 0;
+  return (int)round(fyndetUsdCents($plan)*(float)$fx['rate']);
+ }
  $raw=cfg('PAYFAST_PRICE_'.strtoupper($plan).'_ZAR');
- if(!preg_match('/^[1-9][0-9]{0,5}(?:\.[0-9]{2})?$/',$raw))return 0;
+ if(!preg_match('/^[1-9][0-9]{0,5}(?:\\.[0-9]{2})?$/',$raw))return 0;
  return (int)round((float)$raw*100);
 }
 function pfParameterString(array $fields):string{
