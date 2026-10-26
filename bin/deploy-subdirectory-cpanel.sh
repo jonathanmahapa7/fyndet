@@ -40,8 +40,6 @@ cp -a "$APP/public/assets/." "$WEB/assets/"
 cat > "$WEB/.htaccess" <<'HTACCESS'
 Options -Indexes
 DirectoryIndex index.php
-SetEnv FYNDET_APP_ROOT /home/bathokwe/fyndet-app
-SetEnv FYNDET_BASE_PATH /fyndet
 <IfModule mod_rewrite.c>
 RewriteEngine On
 RewriteCond %{HTTPS} !=on
