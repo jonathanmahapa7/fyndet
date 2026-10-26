@@ -118,6 +118,7 @@ $path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH)?:'/';
 try {
  require $root.'/app/identity.php';
  require $root.'/app/billing.php';
+ require $root.'/app/payfast.php';
  require $root.'/app/report_export.php';
  require $root.'/app/workspace.php';
  require $root.'/app/administration.php';
@@ -210,6 +211,13 @@ try {
   if(isset($_GET['success']))echo '<p class="flash">Checkout completed. Your subscription status will update after secure payment confirmation.</p>';
   if(isset($_GET['cancel']))echo '<p class="flash">Checkout cancelled. No plan change was applied.</p>';
   if(empty($u['email_verified_at']))echo '<p class="flash">Verify your registered email address before starting a paid subscription.</p>';
+  if(pfEnabled()){
+   echo '<section class="panel" style="margin:18px 0"><h2>PayFast sandbox — monthly subscriptions</h2><p class="muted">Sandbox transactions only. These are test payments and do not activate production entitlements.</p><div class="billing-choices">';
+   foreach(['starter','pro','business'] as $tier){$cents=pfAmount($tier);if($cents<500)continue;echo '<article class="panel"><h3>'.esc(ucfirst($tier)).'</h3><p>R'.esc(number_format($cents/100,2)).' / month</p><form method="post" action="/payfast/checkout"><input type="hidden" name="_csrf" value="'.csrf().'"><input type="hidden" name="plan" value="'.$tier.'"><button class="button button-outline"'.(empty($u['email_verified_at'])?' disabled':'').'>Test '.esc(ucfirst($tier)).' checkout</button></form></article>';}
+   echo '</div></section>';
+  }
+  $inv=db()->prepare('SELECT invoice_number,amount_cents,currency,status,issued_at FROM payfast_invoices WHERE user_id=? ORDER BY issued_at DESC LIMIT 30');$inv->execute([$u['id']]);$receipts=$inv->fetchAll();
+  if($receipts){echo '<section class="panel"><h2>PayFast payment records</h2><p class="muted">Sandbox receipts are test records, not tax invoices or proof of funds received.</p>';foreach($receipts as $receipt)echo '<p>'.esc((string)$receipt['invoice_number']).' · '.esc((string)$receipt['issued_at']).' · '.esc((string)$receipt['currency']).' '.esc(number_format((int)$receipt['amount_cents']/100,2)).' · '.esc((string)$receipt['status']).'</p>';echo '</section>';}
   $available=cfg('PAID_BILLING_ENABLED','0')==='1'&&str_starts_with(cfg('STRIPE_SECRET_KEY'),'sk_')&&str_starts_with(cfg('STRIPE_WEBHOOK_SECRET'),'whsec_');
   if(!$available)echo '<p class="flash">Paid subscriptions are not yet available. The payment gateway is awaiting configuration and verification.</p>';
   echo '<div class="billing-choices">';
