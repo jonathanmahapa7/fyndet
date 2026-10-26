@@ -13,12 +13,15 @@ document.querySelectorAll('form[data-payfast-handoff]').forEach(form => {
     button.textContent = 'Opening PayFast…';
     const existing = form.querySelector('[role="alert"]');
     if (existing) existing.remove();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
     try {
       const response = await fetch(form.action, {
         method: 'POST',
         body: new FormData(form),
         credentials: 'same-origin',
         redirect: 'error',
+        signal: controller.signal,
         headers: {'X-FyndEt-Checkout': 'direct', 'Accept': 'application/json'}
       });
       if (!response.ok) throw new Error('Checkout request failed (HTTP ' + response.status + ')');
@@ -50,9 +53,11 @@ document.querySelectorAll('form[data-payfast-handoff]').forEach(form => {
       button.textContent = oldText;
       const note = document.createElement('p');
       note.setAttribute('role', 'alert');
-      note.textContent = 'PayFast checkout could not start (' + (error instanceof Error ? error.message : 'unknown error') + '). No payment was made.';
+      note.textContent = 'PayFast checkout could not start (' + (error && error.name === 'AbortError' ? 'the checkout server did not respond within 15 seconds' : error instanceof Error ? error.message : 'unknown error') + '). No payment was made.';
       form.appendChild(note);
       console.error('FyndEt payment handoff:', error);
+    } finally {
+      clearTimeout(timeout);
     }
   });
 });
