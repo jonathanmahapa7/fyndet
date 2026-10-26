@@ -73,4 +73,13 @@ $invalid=false;try{pfPlanChangeDirection('starter','starter');}catch(DomainExcep
 assertion($invalid,'Same-plan request rejected');
 $invalid=false;try{pfPlanChangeDirection('starter','other');}catch(DomainException $e){$invalid=true;}
 assertion($invalid,'Unknown target plan rejected');
+assertion(pfItnAmountDecision(24858,24858,null)==='original','Original authorised amount accepted');
+assertion(pfItnAmountDecision(24858,41430,null)==='reject','Unauthorised renewal amount rejected');
+assertion(pfItnAmountDecision(24858,41430,['status'=>'awaiting_review','quoted_zar_cents'=>41430])==='reject','Unconfirmed plan-change quote cannot authorise renewal');
+assertion(pfItnAmountDecision(24858,41430,['status'=>'provider_confirmed','quoted_zar_cents'=>41430])==='changed','Provider-confirmed amount authorised');
+assertion(pfItnAmountDecision(24858,41430,['status'=>'applied','quoted_zar_cents'=>41430])==='changed','Applied amount accepted on subsequent renewals');
+assertion(pfItnAmountDecision(24858,42000,['status'=>'applied','quoted_zar_cents'=>41430])==='reject','Unexpected recurring amount rejected');
+assertion(pfPlanChangeQuoteValid(2500,41430,2500,41430),'Exact customer quote can be confirmed');
+assertion(!pfPlanChangeQuoteValid(2500,41430,2500,41500),'Stale currency quote must be refreshed');
+assertion(!pfPlanChangeQuoteValid(2500,41430,3300,41430),'Changed plan price must be reauthorised');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
