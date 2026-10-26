@@ -111,6 +111,16 @@ function pfCheckout():never{
  if(!str_starts_with($base,'https://'))throw new DomainException('Secure application URL required.');
  $fields=['merchant_id'=>cfg('PAYFAST_MERCHANT_ID'),'merchant_key'=>cfg('PAYFAST_MERCHANT_KEY'),'return_url'=>$base.'/app/billing?success=1','cancel_url'=>$base.'/app/billing?cancel=1','notify_url'=>$base.'/payfast/notify','name_first'=>mb_substr((string)$user['name'],0,100),'email_address'=>$user['email'],'m_payment_id'=>$order,'amount'=>number_format($cents/100,2,'.',''),'item_name'=>'FyndEt '.ucfirst($plan).' monthly subscription',...pfCheckoutSubscriptionFields($cents)];
  $fields['signature']=pfSignature($fields,cfg('PAYFAST_PASSPHRASE'));
+ // Normal checkout starts on the billing page: fetch signed fields with a
+ // same-origin authenticated POST, then post the browser directly to PayFast.
+ // Never reveal merchant passphrases or expose checkout data to other origins.
+ if(($_SERVER['HTTP_X_FYNDET_CHECKOUT']??'')==='direct'){
+  header('Content-Type: application/json; charset=UTF-8');
+  header('Cache-Control: no-store, private');
+  header('X-Content-Type-Options: nosniff');
+  echo json_encode(['gateway'=>pfMode()==='live'?'https://www.payfast.co.za/eng/process':'https://sandbox.payfast.co.za/eng/process','fields'=>$fields],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+  exit;
+ }
  header('Content-Type: text/html; charset=UTF-8');
  header('Cache-Control: no-store');
  $gateway=pfMode()==='live'?'https://www.payfast.co.za/eng/process':'https://sandbox.payfast.co.za/eng/process';
