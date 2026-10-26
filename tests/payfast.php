@@ -130,4 +130,6 @@ assertion(is_string($handoffJs)&&str_contains($handoffJs,"fetch(form.action"),'B
 assertion(str_contains($handoffJs,"document.createElement('form')"),'Browser dynamically creates hidden provider form');
 assertion(str_contains($handoffJs,"HTMLFormElement.prototype.submit.call(paymentForm)"),'Browser auto-submits provider POST without a second click');
 assertion(str_contains($handoffJs,"www.payfast.co.za/eng/process"),'Live checkout goes to provider-owned payment endpoint');
+assertion(str_contains($checkoutSource,'AND mode=? AND plan=? AND status=\'pending\''),'Live checkout only reuses pending order for selected plan');
+assertion(str_contains($checkoutSource,"if(\$existing && pfMode()==='live')\$cents=(int)\$existing['amount_cents']"),'Existing live quote retains its original ZAR amount');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
