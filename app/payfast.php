@@ -180,6 +180,15 @@ function pfNotify():never{
  try {
   $q=$db->prepare('SELECT id,user_id,plan,amount_cents,mode,status,payment_id FROM payfast_orders WHERE id=? FOR UPDATE');$q->execute([$order]);$item=$q->fetch();
   if(!$item||$item['status']==='superseded'||$item['mode']!==pfMode()){$db->rollBack();http_response_code(400);exit('Order mismatch');}
+  // Idempotency precedes evolving plan/FX checks: a previously verified
+  // notification may be replayed after the authorised recurring rate changes.
+  $dup=$db->prepare('SELECT order_id FROM payfast_notifications WHERE payment_id=? AND payment_status=?');
+  $dup->execute([$payment,$state]);$dupOrder=$dup->fetchColumn();
+  if($dupOrder!==false){
+   $db->rollBack();
+   if(!hash_equals((string)$dupOrder,$order)){http_response_code(409);exit('Payment reference mismatch');}
+   http_response_code(200);exit('Already processed');
+  }
   $gross=pfGrossCents($fields['amount_gross']??null);
   // A genuine new-amount ITN may arrive while provider PATCH reconciliation
   // is pending. Return a retryable response, not a permanent amount rejection.
@@ -202,10 +211,6 @@ function pfNotify():never{
   if($previous && $previous['status']!=='cancelled' && ($previous['mode']!==$item['mode'] || !hash_equals((string)$previous['order_id'],$order))){
    $db->rollBack();http_response_code(409);exit('Subscription order mismatch');
   }
-  // A payment ID must never be silently accepted against another order.
-  $dup=$db->prepare('SELECT order_id FROM payfast_notifications WHERE payment_id=? AND payment_status=?');
-  $dup->execute([$payment,$state]);$dupOrder=$dup->fetchColumn();
-  if($dupOrder!==false){$db->rollBack();if(!hash_equals((string)$dupOrder,$order)){http_response_code(409);exit('Payment reference mismatch');}http_response_code(200);exit('Already processed');}
   $token=trim((string)($fields['token']??''));
   $policy=pfRenewalPolicy($item,$previous?:null,$state,$payment,$token);
   if($policy==='reject'){$db->rollBack();http_response_code(409);exit('Subscription state mismatch');}
