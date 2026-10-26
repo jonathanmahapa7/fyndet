@@ -28,7 +28,7 @@ if(PHP_SAPI!=='cli'){
  // PayFast responds to the signed form POST with a redirect to its hosted checkout.
  // CSP form-action applies to redirects as well as the initial form destination.
  // Permit only PayFast-owned HTTPS hosts so the browser can follow that hand-off.
- $allowedForms=$billingCheckoutRoute?"'self' https://payfast.co.za https://*.payfast.co.za":"'self'";
+ $allowedForms=$billingCheckoutRoute?"'self' https://payfast.co.za https://*.payfast.co.za https://payment.payfast.io":"'self'";
  header('Content-Security-Policy: default-src \'self\'; img-src \'self\' data:; style-src \'self\' https://fonts.googleapis.com; font-src \'self\' https://fonts.gstatic.com; script-src \'self\' \'nonce-'. $GLOBALS['csp_nonce'] .'\'; object-src \'none\'; base-uri \'self\'; form-action '.$allowedForms);
 }
 function db():PDO {static $pdo=null;if(!$pdo){$dsn='mysql:host='.cfg('DB_HOST','localhost').';port='.cfg('DB_PORT','3306').';dbname='.cfg('DB_NAME').';charset=utf8mb4';$pdo=new PDO($dsn,cfg('DB_USER'),cfg('DB_PASS'),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);}return $pdo;}
