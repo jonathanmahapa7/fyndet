@@ -117,8 +117,13 @@ function pfCheckout():never{
  // This standalone checkout page posts directly to PayFast. The global CSP
  // limits form submission to self and would otherwise block the hosted gateway.
  // Restrict the exception to the exact active environment, never both.
- $nonce=base64_encode(random_bytes(18));
- header('Content-Security-Policy: '.pfCheckoutRedirectCsp(pfMode(),$nonce));
+ // The main controller already emitted a CSP and its associated nonce.
+ // Reuse THAT nonce: stacked CSP policies (PHP/proxy) are intersected by
+ // browsers, so generating a second nonce can block the hand-off script.
+ $nonce=(string)($GLOBALS['csp_nonce']??'');
+ if($nonce===''||!preg_match('/^[A-Za-z0-9+\/_=-]{16,}$/D',$nonce))throw new RuntimeException('Checkout security nonce unavailable.');
+ header_remove('Content-Security-Policy');
+ header('Content-Security-Policy: '.pfCheckoutRedirectCsp(pfMode(),$nonce),true);
  header('Referrer-Policy: no-referrer');
  header('X-Content-Type-Options: nosniff');
  echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Connecting securely to PayFast</title></head><body><form id="payfast-checkout" action="'.esc($gateway).'" method="post" accept-charset="UTF-8">';
@@ -126,8 +131,8 @@ function pfCheckout():never{
  // Browser POST is required for signed hosted PayFast checkout; a server-side
  // 302 redirect would turn the request into GET and lose signed parameters.
  // With JavaScript enabled, the customer never needs to click twice.
- echo '<noscript><p>JavaScript is disabled. Continue to PayFast to complete your payment.</p></noscript><button type="submit">Continue to PayFast</button></form>';
- echo '<script nonce="'.esc($nonce).'">document.getElementById("payfast-checkout").submit();</script></body></html>';exit;
+ echo '<p role="status">Connecting to the secure PayFast payment page…</p><noscript><p>JavaScript is disabled; please use the button below.</p></noscript><button type="submit">Continue to PayFast</button></form>';
+ echo '<script nonce="'.esc($nonce).'">(function(){var f=document.getElementById("payfast-checkout");if(f){HTMLFormElement.prototype.submit.call(f);}})();</script></body></html>';exit;
 }
 function pfServerValidation(string $body):bool{
  if(!function_exists('curl_init'))return false;
