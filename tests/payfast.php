@@ -89,4 +89,5 @@ assertion(pfEffectivePlanForRenewal('starter','changed',['status'=>'awaiting_rev
 $headers=['merchant-id'=>'10004002','version'=>'v1','timestamp'=>'2026-10-26T20:00:00+00:00'];
 assertion(pfApiSubscriptionUpdateSignature($headers,['amount'=>'41430'])!==pfApiSubscriptionUpdateSignature($headers,['amount'=>'24858']),'PayFast subscription update signature binds the exact future amount');
 assertion(pfApiSubscriptionUpdateSignature($headers,['amount'=>'41430'])===pfApiSignature([...$headers,'amount'=>'41430']),'PayFast API signing is canonical across body ordering');
+assertion(pfItnAmountDecision(24858,24858,['status'=>'applied','quoted_zar_cents'=>41430])==='reject','Stale original amount rejected after activated upgrade');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
