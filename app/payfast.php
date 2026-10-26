@@ -86,7 +86,7 @@ function pfNotify():never{
   // merchant order or an old sandbox subscription to replace a newer subscription.
   $existingSub=$db->prepare('SELECT order_id,status,token,mode FROM payfast_subscriptions WHERE user_id=? FOR UPDATE');
   $existingSub->execute([$item['user_id']]);$previous=$existingSub->fetch();
-  if($previous && ($previous['mode']!==$item['mode'] || !hash_equals((string)$previous['order_id'],$order))){
+  if($previous && $previous['status']!=='cancelled' && ($previous['mode']!==$item['mode'] || !hash_equals((string)$previous['order_id'],$order))){
    $db->rollBack();http_response_code(409);exit('Subscription order mismatch');
   }
   // Renewals use new payment IDs against the original merchant order reference.
