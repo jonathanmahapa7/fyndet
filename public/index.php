@@ -239,6 +239,19 @@ try {
    if($posture){echo '<p class="muted">Mail routing: '.(!empty($posture['mx_published'])?'Published':'Not observed').' | SPF: '.esc((string)($posture['spf_policy']??'Unknown')).' | DMARC: '.esc((string)($posture['dmarc_policy']??'Unknown')).'</p>';foreach(($posture['observations']??[]) as $note)echo '<p class="muted"><strong>'.esc((string)($note['title']??'Domain finding')).'</strong>: '.esc((string)($note['explanation']??'')).'</p>';}
    foreach(($result['records']??[]) as $type=>$values){echo '<p class="muted"><strong>'.esc((string)$type).':</strong> '.count((array)$values).' records observed</p>';}
    echo '</details>';
+   $domainName=substr(strrchr((string)$report['target_email'],'@')?:'',1);
+   $domainItems=$domainEvidence['items']??[];
+   $mxRecords=array_values(array_filter($domainItems,static fn($item)=>($item['record_type']??'')==='MX'));
+   $hasDomainData=(bool)($domainItems||($result['records']??[]));
+   if($hasDomainData){
+     echo '<section class="evidence-section"><p class="eyebrow">VERIFIED DOMAIN OBSERVATIONS</p><h3>What the available evidence establishes</h3><p class="muted">The following checks describe '.esc($domainName).' as an email provider, not the individual mailbox.</p><div class="result-grid">';
+     echo '<article class="result-card"><p class="eyebrow">MAIL DELIVERY</p><h4>'.($mxRecords?'Mail servers published':'Mail routing not established').'</h4><p class="muted">'.($mxRecords?count($mxRecords).' public mail exchanger records were observed.':'No mail exchanger records were observed in this lookup.').'</p></article>';
+     echo '<article class="result-card"><p class="eyebrow">SENDER AUTHENTICATION</p><h4>SPF: '.esc((string)($posture['spf_policy']??(!empty($posture['spf_published'])?'Published':'Unknown'))).'</h4><p class="muted">This is a domain-wide policy, not an assessment of a particular email user.</p></article>';
+     echo '<article class="result-card"><p class="eyebrow">IMPERSONATION PROTECTION</p><h4>DMARC: '.esc((string)($posture['dmarc_policy']??(!empty($posture['dmarc_published'])?'Published':'Unknown'))).'</h4><p class="muted">The published domain policy affects email authentication and reporting; it does not establish mailbox ownership.</p></article>';
+     echo '</div>';
+     foreach(($posture['observations']??[]) as $observation)echo '<p class="muted"><strong>'.esc((string)($observation['title']??'Policy observation')).'</strong>: '.esc((string)($observation['explanation']??'')).'</p>';
+     echo '</section>';
+   }
       foreach(['public_references'=>'Public footprint references','breach_exposure'=>'Breach exposure metadata'] as $key=>$heading){
      $data=$result[$key]??['state'=>'not_checked','reason'=>'Not enabled in this release','items'=>[]];
      if(in_array((string)($data['state']??''),['not_checked','source_unavailable'],true))continue;
