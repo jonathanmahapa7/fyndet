@@ -53,6 +53,6 @@ result(!str_starts_with($secret,'sk_') || str_starts_with($portal,'whsec_'),'Con
 $enabled=($env['PAID_BILLING_ENABLED']??'0')==='1';
 result(!$enabled || (str_starts_with($secret,'sk_')&&str_starts_with($portal,'whsec_')),'Paid billing enabled only with checkout and webhook credentials',true);
 if(($env['HIBP_ENABLED']??'0')==='1')result(!empty($env['HIBP_API_KEY']),'Licensed breach adapter has API credentials');
-if(($env['GITHUB_PUBLIC_COMMITS_ENABLED']??'0')==='1')result(!empty($env['GITHUB_TOKEN']),'Public commit adapter has API credentials');
+if(($env['GITHUB_PUBLIC_COMMITS_ENABLED']??'0')==='1')result(empty($env['GITHUB_TOKEN'])||str_starts_with((string)$env['GITHUB_TOKEN'],'github_pat_')||str_starts_with((string)$env['GITHUB_TOKEN'],'ghp_'),'Public commit adapter supports key-free access or a recognised optional token');
 echo "\nSummary: $errors blocking failures, $warnings advisories\n";
 exit($errors>0?1:0);
