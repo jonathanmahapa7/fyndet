@@ -235,49 +235,6 @@ try {
    echo '</article>';
   }
   echo '</div></section>';
-  if(pfEnabled()){
-   // The click is handled on the existing billing page. Signed fields come
-   // from the server, and the browser POSTS directly to PayFast (no FyndEt
-   // intermediate HTML, no hidden credential in the page).
-   $directJs=<<<'JS'
-(function(){
- const forms=document.querySelectorAll('form.fyndet-payfast-direct');
- for(const form of forms){
-  form.addEventListener('submit',async function(ev){
-   ev.preventDefault();
-   const button=form.querySelector('button[type="submit"],button');
-   if(button.disabled)return;
-   button.disabled=true;
-   const original=button.textContent;
-   button.textContent='Opening PayFast…';
-   try{
-    const response=await fetch(form.action,{method:'POST',body:new FormData(form),credentials:'same-origin',headers:{'X-FyndEt-Checkout':'direct','Accept':'application/json'},redirect:'error'});
-    if(!response.ok)throw new Error('Unable to create checkout ('+response.status+')');
-    const result=await response.json();
-    if(!result || !result.fields || !['https://www.payfast.co.za/eng/process','https://sandbox.payfast.co.za/eng/process'].includes(result.gateway))throw new Error('Invalid payment gateway response');
-    const gatewayForm=document.createElement('form');
-    gatewayForm.method='POST';
-    gatewayForm.action=result.gateway;
-    gatewayForm.acceptCharset='UTF-8';
-    gatewayForm.hidden=true;
-    for(const [name,value] of Object.entries(result.fields)){
-     const input=document.createElement('input');
-     input.type='hidden';input.name=name;input.value=String(value);
-     gatewayForm.appendChild(input);
-    }
-    document.body.appendChild(gatewayForm);
-    HTMLFormElement.prototype.submit.call(gatewayForm);
-   }catch(error){
-    button.disabled=false;
-    button.textContent=original;
-    window.alert('Unable to open PayFast. Please try again. No payment has been taken.');
-   }
-  });
- }
-})();
-JS;
-   echo '<script nonce="'.esc($GLOBALS['csp_nonce']??'').'">'.$directJs.'</script>';
-  }
   if(pfEnabled() && pfAmount('starter')<500)echo '<p class="flash">Checkout is temporarily unavailable while the payment quote is refreshed. Please try again shortly.</p>';
   $inv=db()->prepare('SELECT id,invoice_number,amount_cents,currency,status,issued_at FROM payfast_invoices WHERE user_id=? ORDER BY issued_at DESC LIMIT 30');$inv->execute([$u['id']]);$receipts=$inv->fetchAll();
   if(pfEnabled()){$subscriptionQuery=db()->prepare('SELECT token,status FROM payfast_subscriptions WHERE user_id=? AND mode=?');$subscriptionQuery->execute([$u['id'],pfMode()]);$currentPf=$subscriptionQuery->fetch();if($currentPf&&$currentPf['status']==='active'&&!empty($currentPf['token']))echo '<section class="panel"><h2>PayFast subscription management</h2><p>PayFast confirmed an active '.esc(pfMode()).' subscription.</p><form method="post" action="/payfast/cancel"><input type="hidden" name="_csrf" value="'.csrf().'"><button class="button button-outline" >Cancel subscription</button></form></section>';}
