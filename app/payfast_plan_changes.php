@@ -51,7 +51,7 @@ function pfPlanChangeQuoteValid(int $storedUsd,int $storedZar,int $currentUsd,in
 }
 if($path==='/payfast/plan-change/confirm'&&$_SERVER['REQUEST_METHOD']==='POST'){
  verifyCsrf();$u=mustUser();
- if(!pfEnabled()||pfMode()!=='sandbox'||empty($u['email_verified_at']))throw new DomainException('Subscription changes are available only for verified sandbox subscriptions.');
+ if(!pfEnabled()||(pfMode()==='live'&&cfg('PAID_BILLING_ENABLED','0')!=='1')||empty($u['email_verified_at']))throw new DomainException('Subscription changes are available only for verified sandbox subscriptions.');
  $id=(int)($_POST['request_id']??0);
  if($id<1)throw new DomainException('Invalid plan change.');
  $db=db();$db->beginTransaction();
