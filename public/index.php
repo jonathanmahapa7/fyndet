@@ -128,12 +128,12 @@ try {
  if($path==='/robots.txt'){
   header('Content-Type: text/plain; charset=UTF-8');
   $origin=rtrim(cfg('APP_URL',''),' /');
-  $configured=preg_match('~^https://[a-z0-9.-]+(?::443)?$~i',$origin)===1;
+  $configured=preg_match('~^https://[a-z0-9.-]+(?::443)?(?:/fyndet)?$~i',$origin)===1;
   echo "User-agent: *\n";
   if(!$configured || cfg('APP_ENV','production')!=='production')echo "Disallow: /\n";
   else {
-   echo "Allow: /\n";
-   foreach(['/app','/billing','/login','/register','/forgot-password','/reset-password','/verify-email','/resend-verification','/investigate','/logout'] as $private)echo "Disallow: $private\n";
+   echo "Allow: ".(FYNDET_MOUNT?:'/')."/\n";
+   foreach(['/app','/billing','/login','/register','/forgot-password','/reset-password','/verify-email','/resend-verification','/investigate','/logout','/admin','/api','/mfa'] as $private)echo "Disallow: ".(FYNDET_MOUNT?:'')."$private\n";
    echo "Sitemap: $origin/sitemap.xml\n";
   }
   exit;
@@ -141,7 +141,7 @@ try {
  if($path==='/sitemap.xml'){
   header('Content-Type: application/xml; charset=UTF-8');
   $origin=rtrim(cfg('APP_URL',''),' /');
-  if(!preg_match('~^https://[a-z0-9.-]+(?::443)?$~i',$origin)||cfg('APP_ENV','production')!=='production'){http_response_code(503);exit('<?xml version="1.0"?><error>Production domain not configured</error>');}
+  if(!preg_match('~^https://[a-z0-9.-]+(?::443)?(?:/fyndet)?$~i',$origin)||cfg('APP_ENV','production')!=='production'){http_response_code(503);exit('<?xml version="1.0"?><error>Production domain not configured</error>');}
   echo '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
   foreach(['/','/pricing','/how-it-works','/contact','/legal'] as $route)echo '<url><loc>'.esc($origin.$route).'</loc></url>';
   echo '</urlset>';exit;
