@@ -31,3 +31,11 @@
 .source-observation p{margin:7px 0 10px;white-space:normal;overflow-wrap:anywhere;line-height:1.7}
 .evidence-section .report-title{flex-wrap:wrap;align-items:start}
 @media(max-width:600px){.source-observation{padding:12px 0}.evidence-section h3{font-size:20px}}
+
+/* Investigation report information architecture */
+.report-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0;padding:0 0 16px;border-bottom:1px solid rgba(196,231,214,.2)}
+.report-tabs a{display:inline-flex;align-items:center;padding:10px 13px;color:#e9f6e4;background:rgba(255,255,255,.045);border:1px solid rgba(192,221,210,.25);border-radius:6px;font-size:13px;font-weight:650;text-decoration:none}
+.report-tabs a:hover,.report-tabs a:focus-visible{border-color:#d2f295;color:#d2f295;outline-offset:3px}
+.report-panel [id^="report-"]{scroll-margin-top:28px}
+.report-panel details summary{cursor:pointer;line-height:1.8}
+@media(max-width:600px){.report-tabs{gap:6px}.report-tabs a{padding:9px 11px;font-size:12px;flex:1 1 auto;justify-content:center;text-align:center}}
