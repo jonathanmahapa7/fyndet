@@ -30,6 +30,25 @@ if($path==='/payfast/cancel'&&$_SERVER['REQUEST_METHOD']==='POST'){
  auditEvent((int)$user['id'],'billing.payfast.cancelled',pfMode());$db->commit();}catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
  flash('PayFast confirmed cancellation. Your subscription is no longer active.');go('app/billing');
 }
+if($path==='/payfast/invoice.pdf'){
+ $user=mustUser();$invoice=(int)($_GET['id']??0);
+ if($invoice<1)throw new DomainException('Invalid payment record.');
+ $q=db()->prepare('SELECT i.*,o.plan,o.mode,u.email,u.name FROM payfast_invoices i JOIN payfast_orders o ON o.id=i.order_id JOIN users u ON u.id=i.user_id WHERE i.id=? AND i.user_id=?');
+ $q->execute([$invoice,$user['id']]);$receipt=$q->fetch();
+ if(!$receipt){http_response_code(404);exit('Payment record not found.');}
+ $autoload=dirname(__DIR__).'/vendor/autoload.php';if(!is_file($autoload))throw new RuntimeException('PDF library unavailable.');
+ require_once $autoload;
+ $fmt=static fn($value)=>htmlspecialchars((string)$value,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
+ $isTest=$receipt['mode']==='sandbox';
+ $kind='PAYMENT RECEIPT';
+ $warning=$isTest?'SANDBOX TEST ONLY — NO REAL PAYMENT':'This payment receipt is not a VAT tax invoice.';
+ $issuer=cfg('BILLING_LEGAL_NAME','FyndEt');
+ $address=cfg('BILLING_BUSINESS_ADDRESS','');
+ $html='<html><head><meta charset="UTF-8"><style>body{font-family:DejaVu Sans,sans-serif;color:#152431;font-size:12px;padding:32px}h1{font-size:24px}.muted{color:#596d79}table{border-collapse:collapse;width:100%;margin-top:24px}th,td{padding:13px;text-align:left;border-bottom:1px solid #d4dde2}th{background:#f2f5f6}</style></head><body><h1>FyndEt · '.$kind.'</h1><p class="muted">'.$fmt($warning).'</p><p><strong>Issuer:</strong> '.$fmt($issuer).' '.$fmt($address).'</p><p><strong>Customer:</strong> '.$fmt($receipt['name']).' ('.$fmt($receipt['email']).')</p><p><strong>Reference:</strong> '.$fmt($receipt['invoice_number']).'<br><strong>Issued:</strong> '.$fmt($receipt['issued_at']).'<br><strong>PayFast payment:</strong> '.$fmt($receipt['payment_id']).'</p><table><tr><th>Description</th><th>Amount</th></tr><tr><td>FyndEt '.$fmt(ucfirst((string)$receipt['plan'])).' recurring subscription</td><td>ZAR '.$fmt(number_format((int)$receipt['amount_cents']/100,2)).'</td></tr></table><p><strong>Recorded status:</strong> '.$fmt($receipt['status']).'</p><p class="muted">Financial details must be confirmed against the PayFast merchant statement.</p></body></html>';
+ $pdf=new \\Dompdf\\Dompdf(['isRemoteEnabled'=>false,'isPhpEnabled'=>false]);$pdf->loadHtml($html);$pdf->setPaper('A4');$pdf->render();
+ header('Content-Type: application/pdf');header('X-Content-Type-Options: nosniff');header('Content-Disposition: attachment; filename="fyndet-payment-'.$invoice.'.pdf"');
+ echo $pdf->output();exit;
+}
 if($path==='/payfast/invoice'){
  $user=mustUser();$invoice=(int)($_GET['id']??0);
  if($invoice<1)throw new DomainException('Invalid receipt ID.');
