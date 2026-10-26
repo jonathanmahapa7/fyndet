@@ -3,6 +3,10 @@ declare(strict_types=1);
 /** PayFast hosted recurring checkout. Live mode additionally requires an explicit approval gate. */
 function pfMode():string{return cfg('PAYFAST_MODE','sandbox');}
 function pfEnabled():bool{return cfg('PAYFAST_ENABLED','0')==='1'&&in_array(pfMode(),['sandbox','live'],true)&&(pfMode()==='sandbox'||cfg('PAYFAST_LIVE_APPROVED','0')==='1')&&cfg('PAYFAST_MERCHANT_ID')!==''&&cfg('PAYFAST_MERCHANT_KEY')!==''&&cfg('PAYFAST_PASSPHRASE')!=='';}
+function pfZarCentsForUsd(int $usdCents,float $rate):int{
+ if($usdCents<=0||!is_finite($rate)||$rate<5||$rate>100)return 0;
+ return (int)round($usdCents*$rate);
+}
 function pfAmount(string $plan):int{
  if(!in_array($plan,['starter','pro','business'],true))return 0;
  if(cfg('PLATFORM_CURRENCY','ZAR')==='USD'){
@@ -10,7 +14,7 @@ function pfAmount(string $plan):int{
   if(!function_exists('fyndetFxRate')||!function_exists('fyndetUsdCents'))return 0;
   $fx=fyndetFxRate();
   if(!$fx || time()-(int)$fx['fetched_at']>86400)return 0;
-  return (int)round(fyndetUsdCents($plan)*(float)$fx['rate']);
+  return pfZarCentsForUsd(fyndetUsdCents($plan),(float)$fx['rate']);
  }
  $raw=cfg('PAYFAST_PRICE_'.strtoupper($plan).'_ZAR');
  if(!preg_match('/^[1-9][0-9]{0,5}(?:\\.[0-9]{2})?$/',$raw))return 0;
