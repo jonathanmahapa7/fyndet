@@ -46,12 +46,26 @@ function pfCheckout():never{
  if(!empty($account['stripe_customer_id'])||in_array((string)$account['subscription_status'],['active','trialing','past_due','unpaid'],true))throw new DomainException('Existing provider-managed subscription must be resolved before a new PayFast checkout.');
  $q=db()->prepare("SELECT COUNT(*) FROM payfast_subscriptions WHERE user_id=? AND status IN ('active','pending','paused')");
  $q->execute([$user['id']]);if((int)$q->fetchColumn()>0)throw new DomainException('This account already has a PayFast subscription; contact support for changes.');
- $q=db()->prepare("SELECT COUNT(*) FROM payfast_orders WHERE user_id=? AND mode=? AND status='pending' AND created_at>DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE)");
- $q->execute([$user['id'],pfMode()]);
- if((int)$q->fetchColumn()>0)throw new DomainException('A checkout is already pending. Please return to billing after 30 minutes or contact support.');
- $order=bin2hex(random_bytes(16));
- $q=db()->prepare("INSERT INTO payfast_orders(id,user_id,plan,amount_cents,mode,status) VALUES (?,?,?,?,?,'pending')");
- $q->execute([$order,$user['id'],$plan,$cents,pfMode()]);
+ // Serialise checkout creation by account and reuse a matching recent pending order.
+ // Reusing the merchant reference avoids duplicate pending records and lockout.
+ $pdo=db();$pdo->beginTransaction();
+ try{
+  $lock=$pdo->prepare('SELECT id FROM users WHERE id=? FOR UPDATE');
+  $lock->execute([$user['id']]);
+  if(!$lock->fetchColumn())throw new DomainException('Account no longer exists.');
+  $pending=$pdo->prepare("SELECT id,plan,amount_cents FROM payfast_orders WHERE user_id=? AND mode=? AND status='pending' AND created_at>DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE) ORDER BY created_at DESC LIMIT 1");
+  $pending->execute([$user['id'],pfMode()]);$existing=$pending->fetch();
+  if($existing){
+   if(!hash_equals((string)$existing['plan'],$plan)||(int)$existing['amount_cents']!==$cents)
+    throw new DomainException('Another checkout is already pending. Please complete or cancel that checkout before changing plans.');
+   $order=(string)$existing['id'];
+  }else{
+   $order=bin2hex(random_bytes(16));
+   $insert=$pdo->prepare("INSERT INTO payfast_orders(id,user_id,plan,amount_cents,mode,status) VALUES (?,?,?,?,?,'pending')");
+   $insert->execute([$order,$user['id'],$plan,$cents,pfMode()]);
+  }
+  $pdo->commit();
+ }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
  $base=rtrim(cfg('APP_URL'),'/');
  if(!str_starts_with($base,'https://'))throw new DomainException('Secure application URL required.');
  $fields=['merchant_id'=>cfg('PAYFAST_MERCHANT_ID'),'merchant_key'=>cfg('PAYFAST_MERCHANT_KEY'),'return_url'=>$base.'/app/billing?success=1','cancel_url'=>$base.'/app/billing?cancel=1','notify_url'=>$base.'/payfast/notify','name_first'=>mb_substr((string)$user['name'],0,100),'email_address'=>$user['email'],'m_payment_id'=>$order,'amount'=>number_format($cents/100,2,'.',''),'item_name'=>'FyndEt '.ucfirst($plan).' monthly subscription','subscription_type'=>'1','frequency'=>'3','cycles'=>'0','recurring_amount'=>number_format($cents/100,2,'.','')];
