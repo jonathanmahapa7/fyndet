@@ -36,6 +36,13 @@ function pfCheckoutCsp(string $mode):string{
  $gateway=$mode==='live'?'https://www.payfast.co.za':'https://sandbox.payfast.co.za';
  return "default-src 'none'; base-uri 'none'; form-action ".$gateway."; frame-ancestors 'none'";
 }
+function pfReusablePendingOrder(array $existing,string $plan,int $cents):string{
+ if(!hash_equals((string)($existing['plan']??''),$plan)||(int)($existing['amount_cents']??-1)!==$cents)
+  throw new DomainException('Another checkout is already pending. Please complete or cancel that checkout before changing plans.');
+ $id=(string)($existing['id']??'');
+ if(!preg_match('/^[a-f0-9]{32}$/D',$id))throw new DomainException('Invalid pending checkout reference.');
+ return $id;
+}
 function pfCheckout():never{
  if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit;}
  verifyCsrf();$user=mustUser();
@@ -56,9 +63,7 @@ function pfCheckout():never{
   $pending=$pdo->prepare("SELECT id,plan,amount_cents FROM payfast_orders WHERE user_id=? AND mode=? AND status='pending' AND created_at>DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE) ORDER BY created_at DESC LIMIT 1");
   $pending->execute([$user['id'],pfMode()]);$existing=$pending->fetch();
   if($existing){
-   if(!hash_equals((string)$existing['plan'],$plan)||(int)$existing['amount_cents']!==$cents)
-    throw new DomainException('Another checkout is already pending. Please complete or cancel that checkout before changing plans.');
-   $order=(string)$existing['id'];
+   $order=pfReusablePendingOrder($existing,$plan,$cents);
   }else{
    $order=bin2hex(random_bytes(16));
    $insert=$pdo->prepare("INSERT INTO payfast_orders(id,user_id,plan,amount_cents,mode,status) VALUES (?,?,?,?,?,'pending')");
