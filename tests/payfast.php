@@ -82,4 +82,8 @@ assertion(pfItnAmountDecision(24858,42000,['status'=>'applied','quoted_zar_cents
 assertion(pfPlanChangeQuoteValid(2500,41430,2500,41430),'Exact customer quote can be confirmed');
 assertion(!pfPlanChangeQuoteValid(2500,41430,2500,41500),'Stale currency quote must be refreshed');
 assertion(!pfPlanChangeQuoteValid(2500,41430,3300,41430),'Changed plan price must be reauthorised');
+assertion(pfEffectivePlanForRenewal('starter','changed',['status'=>'provider_confirmed','to_plan'=>'pro'])==='pro','Verified changed renewal activates requested plan');
+assertion(pfEffectivePlanForRenewal('starter','changed',['status'=>'applied','to_plan'=>'pro'])==='pro','Later renewals retain upgraded plan');
+assertion(pfEffectivePlanForRenewal('pro','original',['status'=>'provider_confirmed','to_plan'=>'starter'])==='pro','Old amount cannot activate downgrade');
+assertion(pfEffectivePlanForRenewal('starter','changed',['status'=>'awaiting_review','to_plan'=>'pro'])==='starter','Unconfirmed plan cannot activate');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
