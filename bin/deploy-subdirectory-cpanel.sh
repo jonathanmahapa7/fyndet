@@ -35,6 +35,7 @@ echo "Existing FyndEt files backed up: $backup"
 cp -a "$APP/public/index.php" "$WEB/index.php"
 cp -a "$APP/public/mount.php" "$WEB/mount.php"
 cp -a "$APP/public/router.php" "$WEB/router.php"
+chmod 755 "$WEB"
 mkdir -p "$WEB/assets"
 cp -a "$APP/public/assets/." "$WEB/assets/"
 cat > "$WEB/.htaccess" <<'HTACCESS'
