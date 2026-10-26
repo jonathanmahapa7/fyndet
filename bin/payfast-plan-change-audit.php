@@ -15,6 +15,7 @@ try{
  $db=new PDO('mysql:host='.($env['DB_HOST']??'localhost').';port='.($env['DB_PORT']??'3306').';dbname='.($env['DB_NAME']??'').';charset=utf8mb4',$env['DB_USER']??'',$env['DB_PASS']??'',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
  $checks=[
   'Awaiting customer agreement'=>"SELECT COUNT(*) FROM payfast_plan_changes WHERE status='awaiting_review'",
+  'Provider updates requiring reconciliation'=>"SELECT COUNT(*) FROM payfast_plan_changes WHERE status='updating'",
   'Provider confirmed; awaiting verified renewal'=>"SELECT COUNT(*) FROM payfast_plan_changes WHERE status='provider_confirmed'",
   'Changes applied after genuine renewal'=>"SELECT COUNT(*) FROM payfast_plan_changes WHERE status='applied'",
   'Withdrawn requests'=>"SELECT COUNT(*) FROM payfast_plan_changes WHERE status='withdrawn'",
