@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__.'/mount.php';
 date_default_timezone_set('UTC');
 // cPanel can run a split document root: public files in public_html, app files kept private.
-$requestedRoot=(string)(getenv('FYNDET_APP_ROOT')?:'');
+$requestedRoot=(string)(getenv('FYNDET_APP_ROOT')?:'/home/bathokwe/fyndet-app');
 $root=$requestedRoot!==''&&is_dir($requestedRoot)&&is_file(rtrim($requestedRoot,'/').'/app/identity.php')
   ? (string)realpath($requestedRoot) : dirname(__DIR__);
 function envLoad(string $path): array {
