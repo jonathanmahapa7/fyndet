@@ -51,7 +51,7 @@ function pfPlanChangeQuoteValid(int $storedUsd,int $storedZar,int $currentUsd,in
 }
 if($path==='/payfast/plan-change/confirm'&&$_SERVER['REQUEST_METHOD']==='POST'){
  verifyCsrf();$u=mustUser();
- if(!pfEnabled()||(pfMode()==='live'&&cfg('PAID_BILLING_ENABLED','0')!=='1')||empty($u['email_verified_at']))throw new DomainException('Subscription changes are available only for verified sandbox subscriptions.');
+ if(!pfEnabled()||(pfMode()==='live'&&cfg('PAID_BILLING_ENABLED','0')!=='1')||empty($u['email_verified_at']))throw new DomainException('Subscription changes require verified accounts and approved billing.');
  $id=(int)($_POST['request_id']??0);
  if($id<1)throw new DomainException('Invalid plan change.');
  $db=db();$db->beginTransaction();
@@ -63,7 +63,7 @@ if($path==='/payfast/plan-change/confirm'&&$_SERVER['REQUEST_METHOD']==='POST'){
   if(!$request)throw new DomainException('This request is no longer available.');
   $q=$db->prepare('SELECT order_id,plan,status,mode,token FROM payfast_subscriptions WHERE user_id=? FOR UPDATE');
   $q->execute([$u['id']]);$sub=$q->fetch();
-  if(!$sub||$sub['mode']!=='sandbox'||$sub['status']!=='active'||$sub['order_id']!==$request['order_id']||$sub['plan']!==$request['from_plan']||empty($sub['token']))throw new DomainException('The subscription has changed. Request a new quote.');
+  if(!$sub||$sub['mode']!==pfMode()||$sub['status']!=='active'||$sub['order_id']!==$request['order_id']||$sub['plan']!==$request['from_plan']||empty($sub['token']))throw new DomainException('The subscription has changed. Request a new quote.');
   $target=(string)$request['to_plan'];
   $usd=fyndetUsdCents($target);$zar=pfAmount($target);
   if(!pfPlanChangeQuoteValid((int)$request['quoted_usd_cents'],(int)$request['quoted_zar_cents'],$usd,$zar))throw new DomainException('The exchange-rate quote has changed. Withdraw the request and obtain a new quote.');
