@@ -10,7 +10,7 @@ $dotenv=static function(string $path):array{
   $line=trim($line);
   if($line===''||str_starts_with($line,'#')||!str_contains($line,'='))continue;
   [$key,$value]=explode('=',$line,2);
-  $result[trim($key)]=trim($value," \\t\\r\\n\\0\\x0B\\\"'");
+  $result[trim($key)]=trim(trim($value),chr(34).chr(39));
  }
  return $result;
 };
