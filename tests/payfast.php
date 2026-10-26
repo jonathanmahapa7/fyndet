@@ -57,4 +57,12 @@ assertion(pfRenewalPolicy($order,[...$sub,'status'=>'cancelled'],'COMPLETE','lat
 assertion(pfRenewalPolicy($order,$sub,'COMPLETE','second-payment','different-token')==='reject','Recurring token mismatch rejected');
 assertion(pfRenewalPolicy([...$order,'status'=>'superseded'],$sub,'COMPLETE','second-payment','token-one')==='reject','Superseded order cannot activate');
 assertion(pfRenewalPolicy($order,[...$sub,'order_id'=>str_repeat('c',32)],'COMPLETE','second-payment','token-one')==='reject','Wrong subscription order rejected');
+// This file also contains route handlers; keep $path empty when loading it.
+$path='';
+require_once dirname(__DIR__).'/app/payfast_manage.php';
+$cancelled=['status'=>'success','data'=>['response'=>['status_text'=>'CANCELLED']]];
+assertion(pfApiSubscriptionCancelledResponse(200,$cancelled),'Confirmed provider cancellation accepted');
+assertion(!pfApiSubscriptionCancelledResponse(200,['status'=>'success','data'=>['response'=>['status_text'=>'ACTIVE']]]),'Active provider status rejected');
+assertion(!pfApiSubscriptionCancelledResponse(401,$cancelled),'Unauthenticated provider status rejected');
+assertion(!pfApiSubscriptionCancelledResponse(200,['status'=>'success','data'=>['response'=>true]]),'Bare success boolean cannot substitute for cancelled state');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
