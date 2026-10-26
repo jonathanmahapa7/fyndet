@@ -5,7 +5,7 @@ function fyndetUsdCents(string $plan):int {
  $defaults=['starter'=>1500,'pro'=>2500,'business'=>3300];
  if(!isset($defaults[$plan]))return 0;
  $raw=cfg('PRICE_'.strtoupper($plan).'_USD',number_format($defaults[$plan]/100,2,'.',''));
- if(!preg_match('/^[1-9][0-9]{0,4}(?:\\.[0-9]{2})?$/D',$raw))throw new DomainException('Invalid USD subscription price configuration.');
+ if(!preg_match('/^[1-9][0-9]{0,4}(?:\.[0-9]{2})?$/D',$raw))throw new DomainException('Invalid USD subscription price configuration.');
  return (int)round(((float)$raw)*100);
 }
 function fyndetFxRate():?array {
@@ -15,7 +15,7 @@ function fyndetFxRate():?array {
   $row=json_decode($json,true);
   if(!is_array($row)||($row['base']??'')!=='USD'||($row['quote']??'')!=='ZAR')return null;
   if(!is_numeric($row['rate']??null)||$row['rate']<5||$row['rate']>100)return null;
-  if(!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/D',(string)($row['date']??'')))return null;
+  if(!preg_match('/^\d{4}-\d{2}-\d{2}$/D',(string)($row['date']??'')))return null;
   if(!is_numeric($row['fetched_at']??null)||$row['fetched_at']>time()+300)return null;
   return $row;
  };
