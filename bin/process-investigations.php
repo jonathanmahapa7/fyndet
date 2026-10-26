@@ -13,6 +13,7 @@ foreach(file($root.'/.env',FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES)?:[] as $
 }
 require_once $root.'/app/providers.php';
 require_once $root.'/app/gravatar.php';
+require_once $root.'/app/crossref.php';
 require_once $root.'/app/discovery.php';
 require_once $root.'/app/certificates.php';
 require_once $root.'/app/federated_search.php';
@@ -60,6 +61,7 @@ for($i=0;$i<2;$i++){
     $result['expanded_discovery']=fyndetRunExtendedDiscovery(strtolower($job['target_email']),$env);
     $result['expanded_discovery']['sources']=array_merge($domainSources,$result['expanded_discovery']['sources']??[]);
     $result['expanded_discovery']['sources']['public_gravatar_profile']=fyndetGravatarEvidence(strtolower($job['target_email']));
+    $result['expanded_discovery']['sources']['public_scholarly_references']=fyndetCrossrefEvidence(strtolower($job['target_email']));
     $result['expanded_discovery']['sources']['certificate_transparency']=fyndetCertificateEvidence(strtolower($job['target_email']),$env);
     foreach(['public_documents','professional_references','community_references'] as $sourceCategory){
       $result['expanded_discovery']['sources'][$sourceCategory]=fyndetFederatedSearch(strtolower($job['target_email']),$env,$sourceCategory);
