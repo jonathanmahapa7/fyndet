@@ -32,4 +32,8 @@ foreach ([['pro',25000],['starter',41500]] as [$plan,$amount]) {
 $rejected=false;
 try{pfReusablePendingOrder(['id'=>'bad','plan'=>'starter','amount_cents'=>25000],'starter',25000);}catch(DomainException $e){$rejected=true;}
 assertion($rejected,'Malformed pending checkout reference rejected');
+assertion(pfZarCentsForUsd(1500,18.5)===27750,'USD 15 quotes ZAR 277.50');
+assertion(pfZarCentsForUsd(2500,18.5)===46250,'USD 25 quotes ZAR 462.50');
+assertion(pfZarCentsForUsd(3300,18.5)===61050,'USD 33 quotes ZAR 610.50');
+assertion(pfZarCentsForUsd(1500,0)===0,'Invalid FX rate fails closed');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
