@@ -71,40 +71,6 @@ function pfPendingAction(?array $existing,string $plan,int $cents,string $mode):
  if($mode==='sandbox')return 'supersede';
  throw new DomainException('An earlier checkout is pending. Please contact support before changing a live payment quote.');
 }
-/** Direct hosted forms: signed once on server, then the user's own button
- * posts straight to PayFast. No AJAX, intermediate checkout or JS required.
- * Each distinct plan reference is reused for 30 minutes to avoid reload spam.
- */
-function pfDirectHostedCheckout(array $user,string $plan):?array{
- if(!pfEnabled()||empty($user['email_verified_at']))return null;
- $amount=pfAmount($plan);
- if($amount<500)return null;
- $db=db();
- $q=$db->prepare('SELECT stripe_customer_id,subscription_status FROM users WHERE id=?');
- $q->execute([$user['id']]);$account=$q->fetch();
- if(!$account||!empty($account['stripe_customer_id'])||in_array((string)$account['subscription_status'],['active','trialing','past_due','unpaid'],true))return null;
- $q=$db->prepare("SELECT COUNT(*) FROM payfast_subscriptions WHERE user_id=? AND status IN ('active','pending','paused')");
- $q->execute([$user['id']]);if((int)$q->fetchColumn()>0)return null;
- $db->beginTransaction();
- try{
-  $q=$db->prepare('SELECT id FROM users WHERE id=? FOR UPDATE');
-  $q->execute([$user['id']]);if(!$q->fetchColumn())throw new DomainException('Account unavailable.');
-  $q=$db->prepare("SELECT id FROM payfast_orders WHERE user_id=? AND mode=? AND plan=? AND amount_cents=? AND status='pending' AND created_at>DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE) ORDER BY created_at DESC LIMIT 1");
-  $q->execute([$user['id'],pfMode(),$plan,$amount]);
-  $order=$q->fetchColumn();
-  if($order===false){
-   $order=bin2hex(random_bytes(16));
-   $q=$db->prepare("INSERT INTO payfast_orders(id,user_id,plan,amount_cents,mode,status) VALUES (?,?,?,?,?,'pending')");
-   $q->execute([$order,$user['id'],$plan,$amount,pfMode()]);
-  }
-  $db->commit();
- }catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
- $base=rtrim(cfg('APP_URL'),'/');
- if(!str_starts_with($base,'https://'))throw new DomainException('Secure application URL required.');
- $fields=['merchant_id'=>cfg('PAYFAST_MERCHANT_ID'),'merchant_key'=>cfg('PAYFAST_MERCHANT_KEY'),'return_url'=>$base.'/app/billing?success=1','cancel_url'=>$base.'/app/billing?cancel=1','notify_url'=>$base.'/payfast/notify','name_first'=>mb_substr((string)$user['name'],0,100),'email_address'=>$user['email'],'m_payment_id'=>(string)$order,'amount'=>number_format($amount/100,2,'.',''),'item_name'=>'FyndEt '.ucfirst($plan).' monthly subscription',...pfCheckoutSubscriptionFields($amount)];
- $fields['signature']=pfSignature($fields,cfg('PAYFAST_PASSPHRASE'));
- return ['gateway'=>pfMode()==='live'?'https://www.payfast.co.za/eng/process':'https://sandbox.payfast.co.za/eng/process','fields'=>$fields];
-}
 function pfCheckout():never{
  if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit;}
  verifyCsrf();$user=mustUser();
@@ -145,38 +111,24 @@ function pfCheckout():never{
  if(!str_starts_with($base,'https://'))throw new DomainException('Secure application URL required.');
  $fields=['merchant_id'=>cfg('PAYFAST_MERCHANT_ID'),'merchant_key'=>cfg('PAYFAST_MERCHANT_KEY'),'return_url'=>$base.'/app/billing?success=1','cancel_url'=>$base.'/app/billing?cancel=1','notify_url'=>$base.'/payfast/notify','name_first'=>mb_substr((string)$user['name'],0,100),'email_address'=>$user['email'],'m_payment_id'=>$order,'amount'=>number_format($cents/100,2,'.',''),'item_name'=>'FyndEt '.ucfirst($plan).' monthly subscription',...pfCheckoutSubscriptionFields($cents)];
  $fields['signature']=pfSignature($fields,cfg('PAYFAST_PASSPHRASE'));
- // Normal checkout starts on the billing page: fetch signed fields with a
- // same-origin authenticated POST, then post the browser directly to PayFast.
- // Never reveal merchant passphrases or expose checkout data to other origins.
- if(($_SERVER['HTTP_X_FYNDET_CHECKOUT']??'')==='direct'){
+ // Only return server-signed PayFast fields to the authenticated account.
+ // The billing-page script creates an invisible HTML POST directly to PayFast.
+ // There is no intermediate application checkout/payment screen.
+ if(($_SERVER['HTTP_X_FYNDET_CHECKOUT']??'')!=='direct'){
+  http_response_code(400);
   header('Content-Type: application/json; charset=UTF-8');
-  header('Cache-Control: no-store, private');
-  header('X-Content-Type-Options: nosniff');
-  echo json_encode(['gateway'=>pfMode()==='live'?'https://www.payfast.co.za/eng/process':'https://sandbox.payfast.co.za/eng/process','fields'=>$fields],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+  echo '{"error":"Use the subscription buttons on the billing page."}';
   exit;
  }
- header('Content-Type: text/html; charset=UTF-8');
- header('Cache-Control: no-store');
- $gateway=pfMode()==='live'?'https://www.payfast.co.za/eng/process':'https://sandbox.payfast.co.za/eng/process';
- // This standalone checkout page posts directly to PayFast. The global CSP
- // limits form submission to self and would otherwise block the hosted gateway.
- // Restrict the exception to the exact active environment, never both.
- // The main controller already emitted a CSP and its associated nonce.
- // Reuse THAT nonce: stacked CSP policies (PHP/proxy) are intersected by
- // browsers, so generating a second nonce can block the hand-off script.
- $nonce=(string)($GLOBALS['csp_nonce']??'');
- if($nonce===''||!preg_match('/^[A-Za-z0-9+\/_=-]{16,}$/D',$nonce))throw new RuntimeException('Checkout security nonce unavailable.');
- header_remove('Content-Security-Policy');
- header('Content-Security-Policy: '.pfCheckoutRedirectCsp(pfMode(),$nonce),true);
- header('Referrer-Policy: no-referrer');
+ header('Content-Type: application/json; charset=UTF-8');
+ header('Cache-Control: no-store, private');
  header('X-Content-Type-Options: nosniff');
- echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Connecting securely to PayFast</title></head><body><form id="payfast-checkout" action="'.esc($gateway).'" method="post" accept-charset="UTF-8">';
- foreach($fields as $k=>$v)echo '<input type="hidden" name="'.esc($k).'" value="'.esc((string)$v).'">';
- // Browser POST is required for signed hosted PayFast checkout; a server-side
- // 302 redirect would turn the request into GET and lose signed parameters.
- // With JavaScript enabled, the customer never needs to click twice.
- echo '<p role="status">Connecting to the secure PayFast payment page…</p><noscript><p>JavaScript is disabled; please use the button below.</p></noscript><button type="submit">Continue to PayFast</button></form>';
- echo '<script nonce="'.esc($nonce).'">(function(){var f=document.getElementById("payfast-checkout");if(f){HTMLFormElement.prototype.submit.call(f);}})();</script></body></html>';exit;
+ header('Referrer-Policy: no-referrer');
+ echo json_encode([
+  'gateway'=>pfMode()==='live'?'https://www.payfast.co.za/eng/process':'https://sandbox.payfast.co.za/eng/process',
+  'fields'=>$fields
+ ],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+ exit;
 }
 function pfServerValidation(string $body):bool{
  if(!function_exists('curl_init'))return false;
