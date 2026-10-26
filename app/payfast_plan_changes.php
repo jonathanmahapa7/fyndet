@@ -18,7 +18,7 @@ if($path==='/payfast/plan-change'&&$_SERVER['REQUEST_METHOD']==='POST'){
   $q=$db->prepare('SELECT order_id,plan,status,mode,token FROM payfast_subscriptions WHERE user_id=? FOR UPDATE');$q->execute([$u['id']]);$sub=$q->fetch();
   if(!$sub||$sub['status']!=='active'||$sub['mode']!==pfMode()||empty($sub['token']))throw new DomainException('You need an active PayFast subscription to request a change.');
   $from=(string)$sub['plan'];$direction=pfPlanChangeDirection($from,$target);
-  $q=$db->prepare("SELECT id FROM payfast_plan_changes WHERE user_id=? AND status IN ('awaiting_review','provider_confirmed') LIMIT 1 FOR UPDATE");$q->execute([$u['id']]);
+  $q=$db->prepare("SELECT id FROM payfast_plan_changes WHERE user_id=? AND status IN ('awaiting_review','updating','provider_confirmed') LIMIT 1 FOR UPDATE");$q->execute([$u['id']]);
   if($q->fetchColumn())throw new DomainException('An existing plan-change request must be resolved first.');
   $usd=fyndetUsdCents($target);$zar=pfAmount($target);
   if($usd<100||$zar<500)throw new DomainException('A valid currency quote is currently unavailable. Please try later.');
@@ -69,12 +69,23 @@ if($path==='/payfast/plan-change/confirm'&&$_SERVER['REQUEST_METHOD']==='POST'){
   if(!pfPlanChangeQuoteValid((int)$request['quoted_usd_cents'],(int)$request['quoted_zar_cents'],$usd,$zar))throw new DomainException('The exchange-rate quote has changed. Withdraw the request and obtain a new quote.');
   $confirmed=(string)($_POST['consent_amount_cents']??'');
   if(!ctype_digit($confirmed)||(int)$confirmed!==$zar)throw new DomainException('Confirm the quoted future recurring amount.');
-  // Never persist the new plan before the provider confirms its future amount.
-  // Keep the account lock during the provider call to serialize competing requests.
-  if(!pfApiUpdateAmount((string)$sub['token'],$zar))throw new DomainException('PayFast did not confirm the new recurring amount. No local plan change was made.');
-  $q=$db->prepare("UPDATE payfast_plan_changes SET status='provider_confirmed' WHERE id=? AND status='awaiting_review'");
+  // Persist a durable intent BEFORE the network call. If PHP crashes or the
+  // provider responds ambiguously, a safe reconciler can fetch the provider
+  // state without issuing another amount-changing request.
+  $q=$db->prepare("UPDATE payfast_plan_changes SET status='updating' WHERE id=? AND status='awaiting_review'");
   $q->execute([$id]);
-  if($q->rowCount()!==1)throw new RuntimeException('Request changed during provider confirmation.');
+  if($q->rowCount()!==1)throw new RuntimeException('Request changed during confirmation.');
+  $db->commit();
+ }catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
+ // No DB transaction is held while contacting the payment provider.
+ // An uncertain outcome stays in 'updating' for independent reconciliation.
+ if(!pfApiUpdateAmount((string)$sub['token'],$zar))
+  throw new DomainException('PayFast confirmation is pending. Do not resubmit; the amount will be reconciled.');
+ $db->beginTransaction();
+ try{
+  $q=$db->prepare("UPDATE payfast_plan_changes SET status='provider_confirmed' WHERE id=? AND user_id=? AND status='updating'");
+  $q->execute([$id,$u['id']]);
+  if($q->rowCount()!==1)throw new RuntimeException('Provider confirmation requires reconciliation.');
   $db->commit();
  }catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
  auditEvent((int)$u['id'],'billing.payfast.plan_change_confirmed',(string)$id);
@@ -86,13 +97,15 @@ function pfRenderPlanChangePanel(array $u):void{
  $q=db()->prepare('SELECT s.plan,s.status,s.mode,s.token FROM payfast_subscriptions s WHERE s.user_id=? AND s.mode=?');
  $q->execute([$u['id'],pfMode()]);$s=$q->fetch();
  if(!$s||$s['status']!=='active'||empty($s['token']))return;
- $q=db()->prepare("SELECT id,from_plan,to_plan,status,quoted_usd_cents,quoted_zar_cents,requested_at FROM payfast_plan_changes WHERE user_id=? AND status IN ('awaiting_review','provider_confirmed') ORDER BY id DESC LIMIT 1");
+ $q=db()->prepare("SELECT id,from_plan,to_plan,status,quoted_usd_cents,quoted_zar_cents,requested_at FROM payfast_plan_changes WHERE user_id=? AND status IN ('awaiting_review','updating','provider_confirmed') ORDER BY id DESC LIMIT 1");
  $q->execute([$u['id']]);$pending=$q->fetch();
  echo '<section class="panel" style="margin:18px 0"><h2>Change your subscription</h2>';
  if($pending){
   echo '<p>Requested change: '.esc(ucfirst($pending['from_plan'])).' to '.esc(ucfirst($pending['to_plan'])).'.</p>';
   if($pending['status']==='awaiting_review'){
    echo '<p>Confirm the new recurring amount. Your plan remains unchanged until a verified subsequent payment.</p><form method="post" action="/payfast/plan-change/confirm"><input type="hidden" name="_csrf" value="'.csrf().'"><input type="hidden" name="request_id" value="'.(int)$pending['id'].'"><input type="hidden" name="consent_amount_cents" value="'.(int)$pending['quoted_zar_cents'].'"><p>Requested plan: USD '.esc(number_format((int)$pending['quoted_usd_cents']/100,2)).'/month. PayFast future charge: ZAR '.esc(number_format((int)$pending['quoted_zar_cents']/100,2)).' per month, fixed at this amount until a later authorised change.</p><button class="button button-accent">I agree to this future recurring charge</button></form><form method="post" action="/payfast/plan-change/withdraw"><input type="hidden" name="_csrf" value="'.csrf().'"><button class="button button-outline">Withdraw request</button></form>';
+  }elseif($pending['status']==='updating'){
+   echo '<p>PayFast amount update is awaiting independent confirmation. Please do not submit another request; your current access remains unchanged.</p>';
   }else{
    echo '<p>PayFast has confirmed the future amount. Your current benefits remain in place until a verified payment at the new amount.</p>';
   }
