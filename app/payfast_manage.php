@@ -29,6 +29,29 @@ function pfApiCallSubscription(string $token,string $action,string $method='GET'
  $payload=json_decode($response,true);
  return [$http,is_array($payload)?$payload:null];
 }
+/** API signature includes alphabetised headers AND the changed body variables. */
+function pfApiSubscriptionUpdateSignature(array $headers,array $body):string{
+ return pfApiSignature(array_merge($headers,$body));
+}
+function pfApiUpdateAmount(string $token,int $amount):bool{
+ if(pfMode()!=='sandbox'||!pfEnabled()||$amount<500||$amount>100000000||preg_match('/^[a-f0-9-]{36}$/iD',$token)!==1)throw new DomainException('Subscription update not permitted.');
+ $timestamp=gmdate('Y-m-d\\TH:i:s+00:00');
+ $headers=['merchant-id'=>cfg('PAYFAST_MERCHANT_ID'),'version'=>'v1','timestamp'=>$timestamp];
+ $body=['amount'=>(string)$amount];
+ $signature=pfApiSubscriptionUpdateSignature($headers,$body);
+ $url='https://api.payfast.co.za/subscriptions/'.$token.'/update?testing=true';
+ $h=curl_init($url);
+ if($h===false)throw new RuntimeException('PayFast API unavailable.');
+ curl_setopt_array($h,[CURLOPT_CUSTOMREQUEST=>'PATCH',CURLOPT_POSTFIELDS=>http_build_query($body,'','&',PHP_QUERY_RFC1738),CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>20,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_HTTPHEADER=>['merchant-id: '.$headers['merchant-id'],'version: v1','timestamp: '.$timestamp,'signature: '.$signature,'Content-Type: application/x-www-form-urlencoded']]);
+ $response=curl_exec($h);$http=(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE);$error=curl_errno($h);curl_close($h);
+ if($error!==0||!is_string($response))throw new RuntimeException('PayFast update transport failed.');
+ // Provider update responses vary, so the follow-up fetch is authoritative.
+ [$status,$data]=pfApiCallSubscription($token,'fetch');
+ return $status===200&&is_array($data)&&($data['status']??null)==='success'&&
+  is_array($data['data']['response']??null)&&
+  strtoupper((string)($data['data']['response']['status_text']??''))==='ACTIVE'&&
+  (int)($data['data']['response']['amount']??-1)===$amount;
+}
 function pfApiCancel(string $token):bool{
  if(!pfEnabled()||!preg_match('/^[a-f0-9-]{36}$/iD',$token))return false;
  // Do not infer success from a cancellation endpoint response shape:
