@@ -31,7 +31,7 @@ for($i=0;$i<2;$i++){
   $domain=substr(strrchr($job['target_email'],'@'),1);
   if(!$domain||!filter_var($domain,FILTER_VALIDATE_DOMAIN,FILTER_FLAG_HOSTNAME))throw new RuntimeException('Invalid domain.');
   // No login enumeration, private profile scraping, or email-existence probing.
-  $result=['retrieved_at'=>gmdate('c'),'subject_scope'=>'registered_email_self_check','methodology'=>'Public DNS domain configuration only. These records do not prove individual account ownership.','records'=>[],'source'=>'DNS lookup via PHP dns_get_record'];
+  $result=['retrieved_at'=>gmdate('c'),'subject_scope'=>'public_domain_lookup','methodology'=>'Public email-domain DNS and mail-policy records only for unverified addresses. Domain records do not establish mailbox existence, a person’s identity or online account associations.','records'=>[],'source'=>'DNS lookup via PHP dns_get_record'];
   foreach(['MX','TXT','NS'] as $type){
     $dns=@dns_get_record($domain,constant('DNS_'.$type));
     $rows=[];foreach(($dns?:[]) as $r){
@@ -44,6 +44,9 @@ for($i=0;$i<2;$i++){
   // Provider requests are allowed only for the registered email after verified ownership.
   $verify=$db->prepare('SELECT email,email_verified_at FROM users WHERE id=?');$verify->execute([$job['user_id']]);$account=$verify->fetch();
   $authorised=$account && !empty($account['email_verified_at']) && hash_equals(strtolower($account['email']),strtolower($job['target_email']));
+  $result['subject_scope']=$authorised?'verified_registered_email_self_check':'public_domain_lookup';
+  $result['expanded_discovery']=['sources'=>['domain_intelligence'=>fyndetDnsIntelligence(strtolower($job['target_email']))]];
+  $result['evidence_summary']=fyndetCorrelate($result['expanded_discovery']['sources']);
   if($authorised){
     $result['public_references']=publicCommitEvidence(strtolower($job['target_email']),$env);
     $result['breach_exposure']=licensedBreachEvidence(strtolower($job['target_email']),$env);
@@ -54,7 +57,7 @@ for($i=0;$i<2;$i++){
     }
     $result['evidence_summary']=fyndetCorrelate(['public_references'=>$result['public_references'],'breach_exposure'=>$result['breach_exposure']]+$result['expanded_discovery']['sources']);
   } else {
-    $result['public_references']=['state'=>'not_checked','reason'=>'Email control not verified','items'=>[]];
+    $result['public_references']=['state'=>'not_checked','reason'=>'Address not verified; individual-level exposure lookups are not performed for third parties','items'=>[]];
     $result['breach_exposure']=['state'=>'not_checked','reason'=>'Email control not verified','items'=>[]];
   }
   $q=$db->prepare("UPDATE investigations SET status='complete',result_json=?,finished_at=NOW() WHERE id=?");
