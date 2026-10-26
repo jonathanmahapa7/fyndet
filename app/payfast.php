@@ -52,6 +52,11 @@ function pfCheckoutCsp(string $mode):string{
  $gateway=$mode==='live'?'https://www.payfast.co.za':'https://sandbox.payfast.co.za';
  return "default-src 'none'; base-uri 'none'; form-action ".$gateway."; frame-ancestors 'none'";
 }
+/** Single-use script nonce for automatic PayFast hand-off. */
+function pfCheckoutRedirectCsp(string $mode,string $nonce):string{
+ if(!preg_match('/^[A-Za-z0-9+\/_=-]{16,}$/D',$nonce))throw new DomainException('Invalid checkout nonce.');
+ return pfCheckoutCsp($mode)."; script-src 'nonce-".$nonce."'";
+}
 function pfReusablePendingOrder(array $existing,string $plan,int $cents):string{
  if(!hash_equals((string)($existing['plan']??''),$plan)||(int)($existing['amount_cents']??-1)!==$cents)
   throw new DomainException('Another checkout is already pending. Please complete or cancel that checkout before changing plans.');
@@ -112,10 +117,17 @@ function pfCheckout():never{
  // This standalone checkout page posts directly to PayFast. The global CSP
  // limits form submission to self and would otherwise block the hosted gateway.
  // Restrict the exception to the exact active environment, never both.
- header('Content-Security-Policy: '.pfCheckoutCsp(pfMode()));
- echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FyndEt subscription checkout</title></head><body><h1>FyndEt '.esc(ucfirst(pfMode())).' checkout</h1><p>Plan: '.esc(ucfirst($plan)).' — USD '.esc(number_format(fyndetUsdCents($plan)/100,2,'.',',')).' per month. '.(pfMode()==='sandbox'?'Sandbox simulation; no real payment.':'The payment provider will confirm its settlement currency and the recurring amount before you pay.').'</p><form action="'.esc($gateway).'" method="post">';
+ $nonce=base64_encode(random_bytes(18));
+ header('Content-Security-Policy: '.pfCheckoutRedirectCsp(pfMode(),$nonce));
+ header('Referrer-Policy: no-referrer');
+ header('X-Content-Type-Options: nosniff');
+ echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Connecting securely to PayFast</title></head><body><form id="payfast-checkout" action="'.esc($gateway).'" method="post" accept-charset="UTF-8">';
  foreach($fields as $k=>$v)echo '<input type="hidden" name="'.esc($k).'" value="'.esc((string)$v).'">';
- echo '<button type="submit">Continue to PayFast</button></form></body></html>';exit;
+ // Browser POST is required for signed hosted PayFast checkout; a server-side
+ // 302 redirect would turn the request into GET and lose signed parameters.
+ // With JavaScript enabled, the customer never needs to click twice.
+ echo '<noscript><p>JavaScript is disabled. Continue to PayFast to complete your payment.</p></noscript><button type="submit">Continue to PayFast</button></form>';
+ echo '<script nonce="'.esc($nonce).'">document.getElementById("payfast-checkout").submit();</script></body></html>';exit;
 }
 function pfServerValidation(string $body):bool{
  if(!function_exists('curl_init'))return false;
