@@ -25,6 +25,11 @@ function pfParameterString(array $fields):string{
  foreach($fields as $k=>$v)if($v!==''&&$v!==null)$parts[]=(string)$k.'='.urlencode(trim((string)$v));
  return implode('&',$parts);
 }
+/** Keep hosted subscription fields in PayFast's documented signature order. */
+function pfCheckoutSubscriptionFields(int $cents):array{
+ $amount=number_format($cents/100,2,'.','');
+ return ['subscription_type'=>'1','recurring_amount'=>$amount,'frequency'=>'3','cycles'=>'0'];
+}
 function pfSignature(array $fields,string $passphrase):string{
  return md5(pfParameterString($fields).'&passphrase='.urlencode(trim($passphrase)));
 }
@@ -99,7 +104,7 @@ function pfCheckout():never{
  }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
  $base=rtrim(cfg('APP_URL'),'/');
  if(!str_starts_with($base,'https://'))throw new DomainException('Secure application URL required.');
- $fields=['merchant_id'=>cfg('PAYFAST_MERCHANT_ID'),'merchant_key'=>cfg('PAYFAST_MERCHANT_KEY'),'return_url'=>$base.'/app/billing?success=1','cancel_url'=>$base.'/app/billing?cancel=1','notify_url'=>$base.'/payfast/notify','name_first'=>mb_substr((string)$user['name'],0,100),'email_address'=>$user['email'],'m_payment_id'=>$order,'amount'=>number_format($cents/100,2,'.',''),'item_name'=>'FyndEt '.ucfirst($plan).' monthly subscription','subscription_type'=>'1','frequency'=>'3','cycles'=>'0','recurring_amount'=>number_format($cents/100,2,'.','')];
+ $fields=['merchant_id'=>cfg('PAYFAST_MERCHANT_ID'),'merchant_key'=>cfg('PAYFAST_MERCHANT_KEY'),'return_url'=>$base.'/app/billing?success=1','cancel_url'=>$base.'/app/billing?cancel=1','notify_url'=>$base.'/payfast/notify','name_first'=>mb_substr((string)$user['name'],0,100),'email_address'=>$user['email'],'m_payment_id'=>$order,'amount'=>number_format($cents/100,2,'.',''),'item_name'=>'FyndEt '.ucfirst($plan).' monthly subscription',...pfCheckoutSubscriptionFields($cents)];
  $fields['signature']=pfSignature($fields,cfg('PAYFAST_PASSPHRASE'));
  header('Content-Type: text/html; charset=UTF-8');
  header('Cache-Control: no-store');
