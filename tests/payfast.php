@@ -11,4 +11,6 @@ $a=['merchant_id'=>'10000100','amount'=>'100.00','m_payment_id'=>'abc'];
 assertion(pfSignature($a,'testing')===pfSignature($a+['signature'=>'bad'],'testing'),'Signature computation excludes signature field');
 assertion(pfSignature($a,'testing')!==pfSignature($a,'different'),'Changing passphrase changes signature');
 assertion(pfSignature($a,'testing')!==pfSignature(['merchant_id'=>'10000100','amount'=>'101.00','m_payment_id'=>'abc'],'testing'),'Changing payment amount changes signature');
+assertion(pfParameterString($a) === 'merchant_id=10000100&amount=100.00&m_payment_id=abc', 'Canonical PayFast server-validation payload preserves ordering');
+assertion(!str_contains(pfParameterString($a+['signature'=>'fake']),'signature='),'Server confirmation excludes signature field');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
