@@ -36,4 +36,11 @@ assertion(pfZarCentsForUsd(1500,18.5)===27750,'USD 15 quotes ZAR 277.50');
 assertion(pfZarCentsForUsd(2500,18.5)===46250,'USD 25 quotes ZAR 462.50');
 assertion(pfZarCentsForUsd(3300,18.5)===61050,'USD 33 quotes ZAR 610.50');
 assertion(pfZarCentsForUsd(1500,0)===0,'Invalid FX rate fails closed');
+assertion(pfPendingAction(null,'starter',24858,'sandbox')==='create','No pending order creates a quote');
+assertion(pfPendingAction(['plan'=>'starter','amount_cents'=>24858],'starter',24858,'sandbox')==='reuse','Identical sandbox quote is reused');
+assertion(pfPendingAction(['plan'=>'starter','amount_cents'=>25000],'starter',24858,'sandbox')==='supersede','Obsolete sandbox ZAR quote is superseded');
+assertion(pfPendingAction(['plan'=>'pro','amount_cents'=>41430],'starter',24858,'sandbox')==='supersede','Pending sandbox plan change replaces quote');
+$liveRejected=false;
+try{pfPendingAction(['plan'=>'starter','amount_cents'=>25000],'starter',24858,'live');}catch(DomainException $e){$liveRejected=true;}
+assertion($liveRejected,'Live pending checkout may not be replaced automatically');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
