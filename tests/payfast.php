@@ -100,4 +100,14 @@ assertion(pfReceiptPlan('pro')==='pro','Pro renewal payment retains its own rece
 assertion(pfReceiptPlan('starter')==='starter','Pre-upgrade payment retains its original receipt plan');
 $invalidReceipt=false;try{pfReceiptPlan('enterprise');}catch(DomainException $e){$invalidReceipt=true;}
 assertion($invalidReceipt,'Unrecognised receipt plan rejected');
+$firstApplied=['status'=>'applied','quoted_zar_cents'=>41430,'to_plan'=>'pro'];
+$secondConfirmed=['status'=>'provider_confirmed','quoted_zar_cents'=>24858,'to_plan'=>'starter'];
+assertion(pfRenewalAmountResolution(24858,41430,null,$firstApplied)==='existing_plan','Prior upgraded ZAR rate survives later renewals');
+assertion(pfRenewalPlanResolution('starter','existing_plan',null,$firstApplied)==='pro','Prior upgraded plan survives later renewals');
+assertion(pfRenewalAmountResolution(24858,41430,$secondConfirmed,$firstApplied)==='existing_plan','Old current rate remains valid before later downgrade payment');
+assertion(pfRenewalAmountResolution(24858,24858,$secondConfirmed,$firstApplied)==='new_plan','Downgrade back to initial checkout amount is recognised');
+assertion(pfRenewalPlanResolution('starter','new_plan',$secondConfirmed,$firstApplied)==='starter','Downgrade activates only on correct later payment');
+assertion(pfRenewalAmountResolution(24858,24858,null,$firstApplied)==='reject','Stale original rate rejected after earlier upgrade');
+assertion(pfRenewalAmountResolution(24858,42000,null,$firstApplied)==='reject','Unexpected renewed amount rejected after upgrade');
+assertion(pfRenewalAmountResolution(24858,24858,null,null)==='existing_plan','Initial checkout rate remains accepted without changes');
 echo "PAYFAST CONTRACT TESTS PASSED\n";
