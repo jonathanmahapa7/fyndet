@@ -33,6 +33,13 @@ function pfApiCallSubscription(string $token,string $action,string $method='GET'
 function pfApiSubscriptionUpdateSignature(array $headers,array $body):string{
  return pfApiSignature(array_merge($headers,$body));
 }
+function pfApiConfirmedAmount(int $http,mixed $payload,int $amount):bool{
+ $response=is_array($payload)?($payload['data']['response']??null):null;
+ return $http===200 && is_array($payload)&&($payload['status']??null)==='success'&&is_array($response)&&
+  strtoupper(trim((string)($response['status_text']??'')))==='ACTIVE'&&
+  isset($response['amount'])&&is_numeric($response['amount'])&&
+  (int)$response['amount']===$amount;
+}
 function pfApiUpdateAmount(string $token,int $amount):bool{
  if(!pfEnabled()||(pfMode()==='live'&&cfg('PAID_BILLING_ENABLED','0')!=='1')||$amount<500||$amount>100000000||preg_match('/^[a-f0-9-]{36}$/iD',$token)!==1)throw new DomainException('Subscription update not permitted.');
  $timestamp=gmdate('Y-m-d\TH:i:s+00:00');
@@ -48,10 +55,7 @@ function pfApiUpdateAmount(string $token,int $amount):bool{
  if($http<200||$http>=300)throw new RuntimeException('PayFast did not accept the subscription update (HTTP '.$http.').');
  // Confirm the provider state independently; only an active subscription at the agreed amount qualifies.
  [$status,$data]=pfApiCallSubscription($token,'fetch');
- return $status===200&&is_array($data)&&($data['status']??null)==='success'&&
-  is_array($data['data']['response']??null)&&
-  strtoupper((string)($data['data']['response']['status_text']??''))==='ACTIVE'&&
-  (int)($data['data']['response']['amount']??-1)===$amount;
+ return pfApiConfirmedAmount($status,$data,$amount);
 }
 function pfApiCancel(string $token):bool{
  if(!pfEnabled()||!preg_match('/^[a-f0-9-]{36}$/iD',$token))return false;
