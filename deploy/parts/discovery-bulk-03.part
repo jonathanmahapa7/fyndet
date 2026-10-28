@@ -1,0 +1,25 @@
+ADER=>$headers]);
+ $body=curl_exec($h);$status=(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE);curl_close($h);if(!is_string($body)||strlen($body)>500000)return ['status'=>0,'body'=>''];return ['status'=>$status,'body'=>$body];
+}
+function fyndetDGitHub(string $email,array $env):array {
+ $token=trim((string)($env['GITHUB_SEARCH_TOKEN']??''));if(($env['FYNDET_GITHUB_ENABLED']??'0')!=='1'||$token==='')return ['state'=>'not_configured','items'=>[],'reason'=>'free_search_token_not_configured','http_status'=>null];
+ $headers=['Accept: application/vnd.github+json','Authorization: Bearer '.$token,'X-GitHub-Api-Version: 2022-11-28'];$items=[];$status=[];
+ foreach(['users'=>'search/users?q='.rawurlencode($email.' in:email').'&per_page=15','commits'=>'search/commits?q='.rawurlencode('author-email:'.$email).'&per_page=15'] as $kind=>$path){$r=fyndetDHttp('https://api.github.com/'.$path,$headers);$status[]=$r['status'];if($r['status']!==200)continue;$json=json_decode($r['body'],true);if(!is_array($json))continue;
+  foreach(($json['items']??[]) as $v){if(!is_array($v))continue;$url=(string)($v['html_url']??'');if(!str_starts_with($url,'https://github.com/'))continue;$items[]=['title'=>$kind==='commits'?'Public commit author email match':'Public user email match','source'=>'GitHub search','source_url'=>$url,'match_basis'=>'Platform search for exact investigated email','verification_tier'=>'platform_verified','identity_assurance'=>'association_not_proof_of_account_control','category'=>'technical_associations'];}
+ }
+ $ok=count(array_filter($status,fn($s)=>$s===200));$blocked=count(array_filter($status,fn($s)=>in_array($s,[403,429],true)));
+ return ['state'=>$items?'observed':($blocked?'source_unavailable':($ok===count($status)?'not_found':'partial_coverage')),'items'=>$items,'reason'=>$blocked?'rate_limited_or_forbidden':'completed','http_status'=>$status,'queries'=>2];
+}
+function fyndetDOpenPgp(string $email,array $env):array {
+ if(($env['FYNDET_OPENPGP_ENABLED']??'0')!=='1')return ['state'=>'not_configured','items'=>[],'reason'=>'awaits_terms_and_policy_approval'];
+ $r=fyndetDHttp('https://keys.openpgp.org/vks/v1/by-email/'.rawurlencode($email),['Accept: application/pgp-keys']);
+ if($r['status']===404)return ['state'=>'not_found','items'=>[],'http_status'=>404];
+ if($r['status']!==200)return ['state'=>'source_unavailable','items'=>[],'http_status'=>$r['status'],'reason'=>'keyserver_unavailable'];
+ if(!str_contains($r['body'],'BEGIN PGP PUBLIC KEY BLOCK'))return ['state'=>'source_unavailable','items'=>[],'reason'=>'invalid_key_response'];
+ return ['state'=>'observed','http_status'=>200,'items'=>[['title'=>'Public OpenPGP key discovered by exact email','source'=>'keys.openpgp.org','source_url'=>'https://keys.openpgp.org/search?q='.rawurlencode($email),'verification_tier'=>'platform_verified','identity_assurance'=>'email_address_on_public_key_not_person_identity','category'=>'technical_associations']]];
+}
+function fyndetDMeta(string $email,array $env):array {
+ // Local-only endpoint: never accept an arbitrary URL from end users.
+ if(($env['FYNDET_METASEARCH_ENABLED']??'0')!=='1')return ['state'=>'not_configured','items'=>[],'reason'=>'metasearch_not_accepted'];
+ $base='http://127.0.0.1:8888/search';$queries=['"'.$email.'"','mailto:'.$email,$email];$items=[];$trace=[];$seen=[];
+ foreach($queries as $q){$h=curl_init($base.'?'.http_build_query(['q'=>$q,'format'=>'json']));curl_setopt_array($h,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>2,CURLOPT_TIMEOUT=>15,CURLOPT_PROXY=>'',CURLOPT_NOPROXY=>'*',CURLOPT_FOLLOWLOCATION=>false]);$raw=curl_exec($h);$code=(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE);curl_close($h);$data=is_string($raw)?json_decode($raw,true):null;$hits=is_array($data)&&is_array($data['results']??null)?$data['results']:[];$trace[]=['query_type'=>'exact_email_variant','http_status'=>$code,'raw_hits'=>count($hits),'unresponsive_engin
