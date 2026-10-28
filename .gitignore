@@ -7,3 +7,21 @@
 *.log
 *.sql.gz
 .DS_Store
+
+# R0 local evidence and backups
+# Private application configuration and user content
+.env*
+!.env.example
+var/
+**/var/
+backups/
+**/backups/
+fixture_urls.txt
+**/fixture_urls.txt
+*.log
+*.tmp
+*.bak
+*.backup
+*.out
+*.pyc
+__pycache__/
