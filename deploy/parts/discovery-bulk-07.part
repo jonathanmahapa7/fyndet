@@ -1,0 +1,53 @@
+ILD AND OFFLINE CONTRACT TESTS ====='
+for f in "$STAGE"/*.php; do "$PHP" -l "$f"; done
+"$PHP" "$STAGE/test-contract.php" "$STAGE/discovery_pipeline.php"
+
+# The live worker is patched at a single, strictly checked call site. Other logic is retained.
+python3 - "$WORKER" "$STAGE/worker.php" <<'PY'
+from pathlib import Path
+import sys
+s=Path(sys.argv[1]).read_text()
+if s.count('fyndetBuildFootprint(')!=1:raise SystemExit('STOP: expected one existing worker entrypoint')
+marker="require_once $root.'/app/footprint_engine.php';"
+if s.count(marker)!=1:raise SystemExit('STOP: worker include boundary differs; production unchanged')
+s=s.replace(marker,marker+"\nrequire_once $root.'/app/discovery_pipeline.php';",1)
+s=s.replace('fyndetBuildFootprint(','fyndetDiscoveryRun(',1)
+Path(sys.argv[2]).write_text(s)
+print('PASS: Worker and canary call the same fyndetDiscoveryRun() implementation')
+PY
+"$PHP" -l "$STAGE/worker.php"
+if [[ -f "$APP/tests/discovery.php" ]]; then (cd "$APP" && "$PHP" tests/discovery.php); fi
+
+echo '===== STAGE BACKUP, REVIEWABLE ARTIFACTS ====='
+for f in discovery_verifier.php discovery_sources.php discovery_pipeline.php; do install -o "$OWNER" -g "$OWNER" -m 640 "$STAGE/$f" "$BACKUP/$f"; done
+install -o "$OWNER" -g "$OWNER" -m 700 "$STAGE/discovery_canary.php" "$BACKUP/discovery_canary.php"
+install -o "$OWNER" -g "$OWNER" -m 700 "$STAGE/discovery_metasearch_spike.php" "$BACKUP/discovery_metasearch_spike.php"
+install -o "$OWNER" -g "$OWNER" -m 640 "$STAGE/worker.php" "$BACKUP/staged-worker.php"
+printf 'Backup and validated build: %s\n' "$BACKUP"
+
+# Release is opt-in, because the approved compliance and source-terms gates
+# cannot be truthfully asserted by an unattended root script.
+if [[ "${FYNDET_DEPLOY_APPROVED:-0}" != 1 ]]; then
+ echo 'STAGED ONLY: No production files modified.'
+ echo 'Production activation requires explicit FYNDET_DEPLOY_APPROVED=1 after review.'
+ echo 'S3 SearXNG not installed; 20-query terms/reliability spike not yet passed.'
+ echo 'S4 admin URL fixture absent; fixture reconciliation not yet complete.'
+ exit 0
+fi
+
+echo '===== ACTIVATE SHARED ENGINE AND FREE DIRECT SOURCES ====='
+APPLIED=1
+for f in discovery_verifier.php discovery_sources.php discovery_pipeline.php; do install -o "$OWNER" -g "$OWNER" -m 640 "$STAGE/$f" "$APP/app/$f"; done
+install -o "$OWNER" -g "$OWNER" -m 700 "$STAGE/discovery_canary.php" "$APP/bin/discovery_canary.php"
+install -o "$OWNER" -g "$OWNER" -m 700 "$STAGE/discovery_metasearch_spike.php" "$APP/bin/discovery_metasearch_spike.php"
+cp -a "$STAGE/worker.php" "$WORKER"
+chown --reference="$BACKUP/process-investigations.php" "$WORKER"
+chmod --reference="$BACKUP/process-investigations.php" "$WORKER"
+"$PHP" -l "$WORKER"
+for f in discovery_verifier.php discovery_sources.php discovery_pipeline.php; do "$PHP" -l "$APP/app/$f"; done
+if [[ -f "$APP/tests/discovery.php" ]]; then (cd "$APP" && "$PHP" tests/discovery.php); fi
+echo '===== RUN LIVE ADMIN CANARY — NO DATABASE WRITES ====='
+runuser -u "$OWNER" -- "$PHP" "$APP/bin/discovery_canary.php" "$ADMIN"
+echo 'LIVE CANARY EXECUTED. Production remains enabled only if above command succeeds.'
+echo "BACKUP: $BACKUP"
+APPLIED=0
