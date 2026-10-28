@@ -1,0 +1,45 @@
+h]=1;$item['verification_state']='content_verified';$item['verified_snippet']=$v['snippet'];$item['content_hash']=$hash;$accepted[]=$item;$validated++;}
+   else{$item['verification_state']='unverified_lead';$item['verification_reason']=$v['reason'];$leads[]=$item;$drop[$v['reason']]=($drop[$v['reason']]??0)+1;}
+  }
+  $section['label']=$label;$section['items']=$accepted;$section['unverified_leads']=$leads;$section['verification']=['candidates'=>count($all),'verified'=>$validated,'excluded'=>$drop];
+  $oldState=(string)($section['state']??'not_checked');$responsive=0;$unavailable=0;$eligible=0;
+  foreach($groups[$key]??[] as $g){$state=$g['state']??'not_configured';if(!in_array($state,['not_configured','not_checked'],true))$eligible++;if(in_array($state,['not_found','observed'],true))$responsive++;if($state==='source_unavailable')$unavailable++;}
+  if($key==='security_exposure'&&!$authorised){$section['state']='not_checked';$section['reason']='Verified ownership required for private exposure sources';}
+  elseif($accepted){$section['state']='observed';$section['reason']='Exact address or obfuscation independently verified in source content';}
+  elseif($key==='technical_associations' && $eligible===0){$section['state']='not_configured';$section['reason']='No eligible technical source enabled';}
+  elseif($unavailable>0 && $responsive===0 && $key==='technical_associations'){$section['state']='source_unavailable';$section['reason']='Technical source failed';}
+  elseif($key==='technical_associations'||in_array($oldState,['not_found','observed'],true)){$section['state']='partial_coverage';$section['reason']='Current sources do not meet two-independent-broad-index minimum';}
+  elseif($oldState==='source_unavailable'){$section['state']='source_unavailable';}
+  else{$section['state']=in_array($oldState,['not_checked','not_configured'],true)?$oldState:'partial_coverage';}
+  $new[$key]=$section;
+ }
+ $result['footprint']=$new;$result['discovery_trace']=$trace;$result['discovery_policy']=['broad_index_not_found_threshold'=>2,'minimum_eligible_family_response_ratio'=>0.7,'private_exposure_requires_verified_ownership'=>true,'metasearch_opt_in_after_spike'=>true];$result['discovery_duration_ms']=(int)round((microtime(true)-$started)*1000);
+ return $result;
+}
+PHP
+
+cat > "$STAGE/discovery_canary.php" <<'PHP'
+<?php
+declare(strict_types=1);
+if(PHP_SAPI!=='cli')exit(2);
+$root=dirname(__DIR__);$email=$argv[1]??'jonathanmahapa7@gmail.com';
+if(!filter_var($email,FILTER_VALIDATE_EMAIL))exit(2);
+$env=[];foreach(@file($root.'/.env',FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES)?:[] as $line){$line=trim($line);if(!$line||str_starts_with($line,'#')||!str_contains($line,'='))continue;[$k,$v]=explode('=',$line,2);$env[trim($k)]=trim($v," \t\r\n\"'");}
+// Constrain canary to free direct sources; metasearch only after its own gate.
+$env['FYNDET_METASEARCH_ENABLED']='0';
+foreach(['gravatar.php','crossref.php','public_associations.php','footprint_engine.php','discovery_pipeline.php'] as $f)require_once $root.'/app/'.$f;
+$r=fyndetDiscoveryRun($email,$env,false);
+echo 'EMAIL HASH: '.substr(hash('sha256',$email),0,12)."\n";
+foreach($r['discovery_trace'] as $t){echo sprintf("SOURCE %-13s state=%-19s candidates=%-3d verified=%-3d http=%s\n",$t['provider'],$t['state'],$t['candidates'],$t['verified'],is_array($t['http_status'])?implode(',',$t['http_status']):($t['http_status']??'n/a'));}
+foreach($r['footprint'] as $k=>$s)echo sprintf("SECTION %-28s state=%-19s verified=%d leads=%d\n",$k,$s['state'],count($s['items']??[]),count($s['unverified_leads']??[]));
+echo "NOTE: No completed investigation, credit or subscription writes.\n";
+PHP
+
+
+cat > "$STAGE/discovery_metasearch_spike.php" <<'PHP'
+<?php
+declare(strict_types=1);
+// Offline installation is not attempted: local service must already be approved.
+if(PHP_SAPI!=='cli')exit(2);
+$email=$argv[1]??'jonathanmahapa7@gmail.com';
+i
