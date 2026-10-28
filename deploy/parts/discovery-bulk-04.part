@@ -1,0 +1,30 @@
+es'=>count($data['unresponsive_engines']??[])];
+  foreach(array_slice($hits,0,30) as $hit){if(!is_array($hit))continue;$url=(string)($hit['url']??'');if(!fyndetVUrl($url)||isset($seen[$url]))continue;$seen[$url]=true;$items[]=['title'=>mb_substr(strip_tags((string)($hit['title']??'Public search result')),0,160),'source'=>'Local metasearch','source_url'=>$url,'verification_tier'=>'unverified_lead','category'=>'web_presence'];}usleep(1000000);
+ }
+ $usable=count(array_filter($trace,fn($t)=>$t['http_status']===200 && $t['unresponsive_engines']===0));return ['state'=>$items?'observed':($usable===count($trace)?'not_found':'source_unavailable'),'items'=>array_slice($items,0,40),'trace'=>$trace,'reason'=>'search_candidates_not_identity_evidence'];
+}
+PHP
+
+cat > "$STAGE/discovery_pipeline.php" <<'PHP'
+<?php
+declare(strict_types=1);
+require_once __DIR__.'/discovery_verifier.php';
+require_once __DIR__.'/discovery_sources.php';
+/** Preserve old engine as the existing core; this function is called by both worker and canary. */
+function fyndetDiscoveryRun(string $email,array $env,bool $authorised):array {
+ $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new InvalidArgumentException('Invalid investigation email');
+ $started=microtime(true);$result=fyndetBuildFootprint($email,$env,$authorised);
+ if(!is_array($result)||!is_array($result['footprint']??null))throw new RuntimeException('Legacy engine did not return footprint');
+ $headings=fyndetFootprintHeadings();$expected=['social_presence','web_presence','professional_associations','security_exposure','community_activity','technical_associations'];
+ if(array_keys($headings)!==$expected)throw new RuntimeException('Unexpected report categories');
+ $trace=[];$groups=[];$sourceMap=['github'=>'technical_associations','openpgp'=>'technical_associations','metasearch'=>'web_presence'];
+ foreach(['github'=>fn()=>fyndetDGitHub($email,$env),'openpgp'=>fn()=>fyndetDOpenPgp($email,$env),'metasearch'=>fn()=>fyndetDMeta($email,$env)] as $provider=>$invoke){$start=microtime(true);try{$r=$invoke();}catch(Throwable $e){error_log('FyndEt source '.$provider.': '.$e->getMessage());$r=['state'=>'source_unavailable','items'=>[],'reason'=>'provider_exception'];}
+  $items=is_array($r['items']??null)?$r['items']:[];$state=(string)($r['state']??'source_unavailable');$trace[]=['provider'=>$provider,'contacted'=>!in_array($state,['not_configured','not_checked'],true),'responded'=>in_array($state,['observed','not_found'],true),'state'=>$state,'http_status'=>$r['http_status']??null,'raw_hits'=>count($items),'candidates'=>count($items),'verified'=>0,'excluded'=>[],'duration_ms'=>(int)round((microtime(true)-$start)*1000),'reason'=>$r['reason']??null,'query_trace'=>$r['trace']??null];$groups[$sourceMap[$provider]][]=$r;
+ }
+ $seenUrl=[];$seenHash=[];$maxCheck=12;$checked=0;$base=$result['footprint'];$new=[];
+ foreach($headings as $key=>$label){$section=is_array($base[$key]??null)?$base[$key]:['items'=>[]];$old=is_array($section['items']??null)?$section['items']:[];$all=$old;foreach($groups[$key]??[] as $g)foreach(($g['items']??[]) as $item)$all[]=$item;
+  $accepted=[];$leads=[];$drop=[];$validated=0;
+  foreach($all as $item){if(!is_array($item))continue;$url=(string)($item['source_url']??'');if(!$url||!fyndetVUrl($url)){$drop['invalid_url']=($drop['invalid_url']??0)+1;continue;}
+   $canonical=preg_replace('/#.*$/','',$url);if(isset($seenUrl[$canonical])){$drop['duplicate_url']=($drop['duplicate_url']??0)+1;continue;}$seenUrl[$canonical]=1;
+   if($checked>=$maxCheck){$item['verification_state']='unverified_lead';$item['verification_reason']='job_time_budget';$leads[]=$item;continue;}
+   $checked++;$v=fyndetVCheck($email,$url);if($v['tier']==='content_verified'){$hash=$v['content_hash'];if(isset($seenHash[$hash])){$drop['duplicate_content']=($drop['duplicate_content']??0)+1;continue;}$seenHash[$has
