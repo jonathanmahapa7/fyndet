@@ -1,0 +1,32 @@
+f(!filter_var($email,FILTER_VALIDATE_EMAIL))exit(2);
+[$local,$domain]=explode('@',$email,2);
+$q=['"'.$email.'"',$email,'mailto:'.$email,'"'.$local.' [at] '.$domain.'"','"'.$local.'(at)'.$domain.'"','"'.$local.' at '.$domain.'"','"'.$local.'" "'.$domain.'"','"'.$local.'"','"'.$email.'" filetype:pdf','"'.$email.'" site:linkedin.com','"'.$email.'" site:facebook.com','"'.$email.'" site:instagram.com','"'.$email.'" site:reddit.com','"'.$email.'" site:stackoverflow.com','"'.$email.'" site:github.com','"'.$email.'" site:gitlab.com','"'.$email.'" site:medium.com','"'.$email.'" site:substack.com','"'.$email.'" site:pastebin.com','"'.$email.'" site:archive.org'];
+$records=[];$engines=[];
+foreach($q as $n=>$query){$h=curl_init('http://127.0.0.1:8888/search?'.http_build_query(['q'=>$query,'format'=>'json']));curl_setopt_array($h,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>2,CURLOPT_TIMEOUT=>18,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_NOPROXY=>'*',CURLOPT_PROXY=>'']);$start=microtime(true);$body=curl_exec($h);$status=(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE);curl_close($h);$data=is_string($body)?json_decode($body,true):null;$hits=is_array($data)?($data['results']??[]):[];$bad=is_array($data)?($data['unresponsive_engines']??[]):[];$names=[];
+ foreach($hits as $hit){foreach(($hit['engines']??[$hit['engine']??'']) as $e){if(!is_string($e)||!$e)continue;$names[$e]=1;$engines[$e]=($engines[$e]??0)+1;}}
+ $records[]=['query_number'=>$n+1,'http'=>$status,'hits'=>count($hits),'unresponsive'=>count($bad),'elapsed_ms'=>(int)((microtime(true)-$start)*1000),'engines_with_results'=>array_keys($names)];echo sprintf("QUERY %02d HTTP=%d HITS=%d ERRORS=%d LATENCY=%dms\n",$n+1,$status,count($hits),count($bad),$records[$n]['elapsed_ms']);usleep(1100000);
+}
+arsort($engines);echo "ENGINE HIT COUNTS (not equivalent to response rates):\n";foreach($engines as $name=>$n)echo "$name: $n\n";
+$ok=count(array_filter($records,fn($r)=>$r['http']===200 && $r['unresponsive']===0));echo "CLEAN JSON RESPONSES: $ok/20\n";
+echo "ADOPTION: NOT AUTHORISED; per-engine 80% response rate and commercial terms must be independently confirmed.\n";
+PHP
+
+cat > "$STAGE/test-contract.php" <<'PHP'
+<?php
+declare(strict_types=1);
+// Isolated test uses the real production entrypoint with mocked original engine.
+function fyndetFootprintHeadings():array{return ['social_presence'=>'Social','web_presence'=>'Web','professional_associations'=>'Professional','security_exposure'=>'Security','community_activity'=>'Community','technical_associations'=>'Technical'];}
+function fyndetBuildFootprint(string $email,array $env,bool $authorised):array{$r=[];foreach(fyndetFootprintHeadings() as $k=>$v)$r[$k]=['state'=>'not_found','items'=>[]];$r['security_exposure']['state']='source_unavailable';return ['footprint'=>$r];}
+require $argv[1];
+$a=fyndetDiscoveryRun('test@example.invalid',[],false);$expected=array_keys(fyndetFootprintHeadings());
+if(array_keys($a['footprint'])!==$expected)throw new RuntimeException('Wrong section order');
+if($a['footprint']['security_exposure']['state']!=='not_checked')throw new RuntimeException('Ownership gate broken');
+if($a['footprint']['web_presence']['state']!=='partial_coverage')throw new RuntimeException('Thin coverage wrongly called negative');
+if($a['footprint']['technical_associations']['state']!=='not_configured')throw new RuntimeException('Unconfigured technical source state broken');
+if(count($a['discovery_trace'])!==3)throw new RuntimeException('Missing source trace');
+if(($a['discovery_trace'][0]['state']??'')!=='not_configured')throw new RuntimeException('Tokenless source state broken');
+if(fyndetVUrl('http://127.0.0.1/')!==null||fyndetVUrl('https://127.0.0.1/')!==null)throw new RuntimeException('Unsafe URL passed');
+echo "PASS: shared production function and six sections\nPASS: policy, negative-state, source traces and SSRF URL checks\n";
+PHP
+
+echo '===== BU
