@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+APP=/home/bathokwe/fyndet-app
+PHP=/opt/cpanel/ea-php83/root/usr/bin/php
+OWNER=bathokwe
+ENGINE="$APP/app/footprint_engine.php"
+WORKER="$APP/bin/process-investigations.php"
+ADMIN=jonathanmahapa7@gmail.com
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+BACKUP="$APP/var/discovery-bulk-$STAMP"
+STAGE="$(mktemp -d)"
+APPLIED=0
+printf '\nFYNDET — CONSOLIDATED DISCOVERY BUILD\nAdmin: %s\n\n' "$ADMIN"
+[[ $(id -u) -eq 0 && -x "$PHP" && -f "$ENGINE" && -f "$WORKER" ]] || { echo 'FAIL: Root, PHP or application prerequisites missing'; exit 1; }
+for x in python3 curl openssl; do command -v "$x" >/dev/null || { echo "FAIL: $x missing"; exit 1; }; done
+for f in discovery_pipeline.php discovery_verifier.php discovery_sources.php discovery_canary.php; do [[ ! -e "$APP/app/$f" && ! -e "$APP/bin/$f" ]] || { echo "STOP: Existing $f; will not overwrite"; exit 1; }; done
+install -d -m 700 "$BACKUP"
+cp -a "$ENGINE" "$BACKUP/footprint_engine.php"
+cp -a "$WORKER" "$BACKUP/process-investigations.php"
+rollback(){ if [[ "$APPLIED" == 1 ]]; then cp -a "$BACKUP/footprint_engine.php" "$ENGINE"; cp -a "$BACKUP/process-investigations.php" "$WORKER"; for f in discovery_pipeline.php discovery_verifier.php discovery_sources.php; do rm -f "$APP/app/$f"; done; rm -f "$APP/bin/discovery_canary.php" "$APP/bin/discovery_metasearch_spike.php"; echo 'ROLLBACK: Application files restored'; fi; }
+finish(){ r=$?; if ((r != 0)); then rollback; fi; rm -rf "$STAGE"; exit "$r"; }
+trap finish EXIT
+
+cat > "$STAGE/discovery_verifier.php" <<'PHP'
+<?php
+declare(strict_types=1);
+/** Bounded public HTTP verification; never follows redirects or fetches local/private IPs. */
+function fyndetVUrl(string $url): ?array {
+ $p=parse_url($url);
+ if(!is_array($p) || strtolower($p['scheme']??'')!=='https' || empty($p['host']) || isset($p['user']) || isset($p['pass']) || isset($p['port']) || strlen($url)>1800) return null;
+ $host=strtolower($p['host']);
+ if(!filter_var($host,FILTER_VALIDATE_DOMAIN,FILTER_FLAG_HOSTNAME) || filter_var($host,FILTER_VALIDATE_IP))return null;
+ return [$host,(string)($p['path']??'/')];
+}
+function fyndetVResolve(string $host):?string {
+ $a=@dns_get_record($host,DNS_A|DNS_AAAA);
+ if(!is_array($a)||!$a)return null;
+ $ips=[];
+ foreach($a as $r){$ip=$r['ip']??$r['ipv6']??null; if(!$ip || !filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_NO_PRIV_RANGE|FILTER_FLAG_NO_RES_RANGE))return null; $ips[]=$ip;}
+ foreach($ips as $ip)if(filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4))return $ip;
+ return null; // fail closed on IPv6-only destinations for this release
+}
+function fyndetVFetch(string $url,int $cap=350000):array {
+ $p=fyndetVUrl($url);if(!$p)return ['state'=>'blocked','reason'=>'invalid_or_non_https_url'];
+ [$host]=$p;$ip=fyndetVResolve($host);if(!$ip)return ['state'=>'blocked','reason'=>'non_public_destination'];
+ $bytes='';$h=curl_init($url);
+ curl_setopt_array($h,[CURLOPT_FOLLOWLOCATION=>false,CURLOPT_RETURNTRANSFER=>false,CURLOPT_CONNECTTIMEOUT=>3,CURLOPT_TIMEOUT=>9,CURLOPT_PROXY=>'',CURLOPT_NOPROXY=>'*',CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_RESOLVE=>["$host:443:$ip"],CURLOPT_USERAGENT=>'FyndEtEvidence/1.0',CURLOPT_HTTPHEADER=>['Accept: text/html, text/plain','Accept-Encoding: identity'],CURLOPT_WRITEFUNCTION=>static function($ch,string $part)use(&$bytes,$cap):int{if(strlen($bytes)+strlen($part)>$cap)return 0;$bytes.=$part;return strlen($part);}]);
+ $ok=curl_exec($h);$code=(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE);$type=strtolower((string)curl_getinfo($h,CURLINFO_CONTENT_TYPE));$error=(string)curl_error($h);curl_close($h);
+ if($ok===false)return ['state'=>'not_fetchable','reason'=>$error?'transport_or_size_limit':'transport_error','http_status'=>$code];
+ if($code!==200)return ['state'=>'not_fetchable','reason'=>'http_'.$code,'http_status'=>$code];
+ if(!str_starts_with($type,'text/htm
